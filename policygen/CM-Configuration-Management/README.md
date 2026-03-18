@@ -1,0 +1,44 @@
+# CM-Configuration-Management
+
+Policies in the **CM (Configuration Management)** family, mapped to NIST SP 800-53
+control **CM-6 Configuration Settings**. These policies provision and configure tenant
+namespaces on managed clusters.
+
+## PolicyGenerator
+
+### policyGenerator-managed.yaml
+
+Targets managed clusters (`placement-managed-clusters`) and creates per-tenant:
+
+- **Namespace** with labels for tenant identification (`customer-namespace`) and
+  primary user-defined network opt-in (`k8s.ovn.org/primary-user-defined-network`).
+- **ResourceQuota** setting hard limits on CPU, memory, pods, and storage requests.
+- **ApplicationAwareResourceQuota** setting VM-specific limits (`requests.cpu/vmi`,
+  `requests.memory/vmi`, etc.) for KubeVirt workloads.
+- **LimitRange** with default resource boundaries for containers in the namespace.
+- **UserDefinedNetwork** providing an L2 overlay subnet per tenant via OVN-Kubernetes.
+- **MetalLB VRF/BGP** resources (BGPPeer, IPAddressPool, BGPAdvertisement) for
+  isolated external connectivity per tenant.
+
+A cluster-wide **AdminNetworkPolicy** (`tenant-isolation`) is also applied once to
+deny cross-tenant ingress and egress between all namespaces labeled
+`customer-namespace`.
+
+## Templates
+
+| Directory | Template | Resource |
+|---|---|---|
+| `namespace/` | `namespace.yaml` | Namespace with tenant labels |
+| `quota/` | `resource-quota.yaml` | ResourceQuota |
+| `quota/` | `application-aware-resource-quota.yaml` | ApplicationAwareResourceQuota (KubeVirt) |
+| `quota/` | `limit-range.yaml` | LimitRange |
+| `network/` | `user-defined-network.yaml` | UserDefinedNetwork (OVN L2 subnet) |
+| `network/` | `metallb-vrf-bgp.yaml` | BGPPeer + IPAddressPool + BGPAdvertisement |
+| `network-policy/` | `admin-network-policy.yaml` | AdminNetworkPolicy for cross-tenant isolation |
+
+## Adding a tenant
+
+Add a new policy block in `policyGenerator-managed.yaml` that patches the templates
+with tenant-specific values: namespace name, quota limits, subnet CIDR, MetalLB BGP
+peer/ASN/VRF, and IP pool. Use the existing `starwars` and `startrek` blocks as
+reference.
