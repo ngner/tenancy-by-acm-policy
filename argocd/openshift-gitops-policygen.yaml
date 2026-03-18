@@ -1,0 +1,42 @@
+---
+# Patch the default ArgoCD instance to add the PolicyGenerator kustomize plugin.
+#
+# The policy-generator-install init container copies the PolicyGenerator binary
+# from the ACM subscription image into a shared volume so the repo-server can
+# invoke it as a kustomize plugin.
+#
+# Apply with:
+#   oc apply -f argocd/openshift-gitops-policygen.yaml
+#
+# NOTE: Update the image tag to match the installed ACM version.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  kustomizeBuildOptions: --enable-alpha-plugins
+  repo:
+    env:
+      - name: KUSTOMIZE_PLUGIN_HOME
+        value: /.config/kustomize/plugin
+    initContainers:
+      - name: policy-generator-install
+        image: registry.redhat.io/rhacm2/multicluster-operators-subscription-rhel9:v2.16
+        imagePullPolicy: Always
+        command:
+          - /bin/bash
+        args:
+          - -c
+          - >-
+            mkdir -p /.config/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator &&
+            cp /policy-generator/PolicyGenerator-not-fips-compliant
+            /.config/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator/PolicyGenerator
+        volumeMounts:
+          - name: kustomize
+            mountPath: /.config
+    volumeMounts:
+      - name: kustomize
+        mountPath: /.config
+    volumes:
+      - name: kustomize

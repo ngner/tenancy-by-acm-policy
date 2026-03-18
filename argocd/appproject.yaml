@@ -1,0 +1,35 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenancy-policy
+  namespace: openshift-gitops
+spec:
+  description: Project for ACM tenancy policy applications
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  destinations:
+    - namespace: policies
+      server: https://kubernetes.default.svc
+    - namespace: openshift-gitops
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Namespace
+    - group: apps.open-cluster-management.io
+      kind: PlacementRule
+    - group: cluster.open-cluster-management.io
+      kind: Placement
+    - group: policy.open-cluster-management.io
+      kind: Policy
+    - group: policy.open-cluster-management.io
+      kind: PlacementBinding
+    - group: policy.open-cluster-management.io
+      kind: PolicySet
+    - group: policy.open-cluster-management.io
+      kind: PolicyGenerator
+  sourceRepos:
+    - https://github.com/ngner/tenancy-by-acm-policy.git
