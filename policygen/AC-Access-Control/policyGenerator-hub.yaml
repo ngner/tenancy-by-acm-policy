@@ -1,0 +1,144 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-hub-tenancy-access-control
+placementBindingDefaults:
+  name: binding-hub-tenancy-access-control
+policyDefaults:
+  categories:
+    - AC Access Control
+  controls:
+    - AC-3 Access Enforcement
+  namespace: policies
+  policySets:
+    - tenancy-hub-access-control
+  remediationAction: enforce
+  severity: high
+  standards:
+    - NIST SP 800-53
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  # =========================================================================
+  # Starwars tenant - Hub RBAC + MulticlusterRoleAssignments
+  # =========================================================================
+  - name: policy-tenant-starwars-hub-rbac
+    manifests:
+      # ClusterRoleBinding: ACM console access for starwars-admins (fleet admin)
+      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-acm-fleet-admin
+            roleRef:
+              name: acm-vm-fleet:admin
+            subjects:
+              - name: starwars-admins
+      # ClusterRoleBinding: ACM console access for starwars-operators (fleet view)
+      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-acm-fleet-operator
+            roleRef:
+              name: acm-vm-fleet:view
+            subjects:
+              - name: starwars-operators
+      # MulticlusterRoleAssignment: virt-admin on managed clusters
+      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-virt-admin
+            spec:
+              subject:
+                name: starwars-admins
+              roleAssignments:
+                - name: customer-starwars-virt-admin-kubevirt
+                  clusterRole: kubevirt.io:admin
+                  targetNamespaces:
+                    - starwars
+                - name: customer-starwars-virt-admin-extended
+                  clusterRole: acm-vm-extended:admin
+                  targetNamespaces:
+                    - starwars
+      # MulticlusterRoleAssignment: virt-operator on managed clusters
+      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-virt-operator
+            spec:
+              subject:
+                name: starwars-operators
+              roleAssignments:
+                - name: customer-starwars-virt-operator-kubevirt
+                  clusterRole: kubevirt.io:edit
+                  targetNamespaces:
+                    - starwars
+                - name: customer-starwars-virt-operator-extended
+                  clusterRole: acm-vm-extended:view
+                  targetNamespaces:
+                    - starwars
+
+  # =========================================================================
+  # Startrek tenant - Hub RBAC + MulticlusterRoleAssignments
+  # =========================================================================
+  - name: policy-tenant-startrek-hub-rbac
+    manifests:
+      # ClusterRoleBinding: ACM console access for startrek-admins (fleet admin)
+      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-acm-fleet-admin
+            roleRef:
+              name: acm-vm-fleet:admin
+            subjects:
+              - name: startrek-admins
+      # ClusterRoleBinding: ACM console access for startrek-operators (fleet view)
+      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-acm-fleet-operator
+            roleRef:
+              name: acm-vm-fleet:view
+            subjects:
+              - name: startrek-operators
+      # MulticlusterRoleAssignment: virt-admin on managed clusters
+      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-virt-admin
+            spec:
+              subject:
+                name: startrek-admins
+              roleAssignments:
+                - name: customer-startrek-virt-admin-kubevirt
+                  clusterRole: kubevirt.io:admin
+                  targetNamespaces:
+                    - startrek
+                - name: customer-startrek-virt-admin-extended
+                  clusterRole: acm-vm-extended:admin
+                  targetNamespaces:
+                    - startrek
+      # MulticlusterRoleAssignment: virt-operator on managed clusters
+      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-virt-operator
+            spec:
+              subject:
+                name: startrek-operators
+              roleAssignments:
+                - name: customer-startrek-virt-operator-kubevirt
+                  clusterRole: kubevirt.io:edit
+                  targetNamespaces:
+                    - startrek
+                - name: customer-startrek-virt-operator-extended
+                  clusterRole: acm-vm-extended:view
+                  targetNamespaces:
+                    - startrek
+
+policySets:
+  - name: tenancy-hub-access-control
+    description: Hub-side tenant RBAC and MulticlusterRoleAssignments for managed cluster VM access
+    placement:
+      placementName: placement-hub-clusters

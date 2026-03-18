@@ -1,0 +1,167 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-managed-tenancy-configuration
+placementBindingDefaults:
+  name: binding-managed-tenancy-configuration
+policyDefaults:
+  categories:
+    - CM Configuration Management
+  controls:
+    - CM-6 Configuration Settings
+  namespace: policies
+  policySets:
+    - tenancy-managed-configuration
+  remediationAction: enforce
+  severity: high
+  standards:
+    - NIST SP 800-53
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  # =========================================================================
+  # Cluster-wide Tenant Isolation
+  # =========================================================================
+  - name: policy-tenant-isolation-anp
+    manifests:
+      - path: network-policy/admin-network-policy.yaml
+
+  # =========================================================================
+  # Starwars tenant - Managed cluster Configuration
+  # =========================================================================
+  - name: policy-tenant-starwars-config
+    manifests:
+      - path: namespace/namespace.yaml
+        patches:
+          - metadata:
+              name: starwars
+      - path: quota/resource-quota.yaml
+        patches:
+          - metadata:
+              name: starwars-resource-quota
+              namespace: starwars
+            spec:
+              hard:
+                requests.cpu: "4"
+                requests.memory: "12Gi"
+                pods: "5"
+                requests.storage: "1000Gi"
+      - path: quota/application-aware-resource-quota.yaml
+        patches:
+          - metadata:
+              name: starwars-vm-resource-quota
+              namespace: starwars
+            spec:
+              hard:
+                requests.cpu/vmi: "4"
+                requests.memory/vmi: "12Gi"
+                limits.cpu/vmi: "4"
+                limits.memory/vmi: "12Gi"
+      - path: quota/limit-range.yaml
+        patches:
+          - metadata:
+              name: starwars-limit-range
+              namespace: starwars
+      - path: network/user-defined-network.yaml
+        patches:
+          - metadata:
+              name: starwars-network
+              namespace: starwars
+            spec:
+              layer2:
+                subnets:
+                  - "10.0.1.0/24"
+      - path: network/metallb-vrf-bgp.yaml
+        patches:
+          - metadata:
+              name: starwars-bgp-peer
+            spec:
+              peerASN: 64501
+              peerAddress: 192.168.1.1
+              vrf: starwars-vrf
+          - metadata:
+              name: starwars-ip-pool
+            spec:
+              addresses:
+                - 192.168.11.0/24
+          - metadata:
+              name: starwars-bgp-advertisement
+            spec:
+              ipAddressPools:
+                - starwars-ip-pool
+              peers:
+                - starwars-bgp-peer
+
+  # =========================================================================
+  # Startrek tenant - Managed cluster Configuration
+  # =========================================================================
+  - name: policy-tenant-startrek-config
+    manifests:
+      - path: namespace/namespace.yaml
+        patches:
+          - metadata:
+              name: startrek
+      - path: quota/resource-quota.yaml
+        patches:
+          - metadata:
+              name: startrek-resource-quota
+              namespace: startrek
+            spec:
+              hard:
+                requests.cpu: "4"
+                requests.memory: "10Gi"
+                pods: "10"
+                requests.storage: "150Gi"
+      - path: quota/application-aware-resource-quota.yaml
+        patches:
+          - metadata:
+              name: startrek-vm-resource-quota
+              namespace: startrek
+            spec:
+              hard:
+                requests.cpu/vmi: "4"
+                requests.memory/vmi: "10Gi"
+                limits.cpu/vmi: "4"
+                limits.memory/vmi: "10Gi"
+      - path: quota/limit-range.yaml
+        patches:
+          - metadata:
+              name: startrek-limit-range
+              namespace: startrek
+      - path: network/user-defined-network.yaml
+        patches:
+          - metadata:
+              name: startrek-network
+              namespace: startrek
+            spec:
+              layer2:
+                subnets:
+                  - "10.0.2.0/24"
+      - path: network/metallb-vrf-bgp.yaml
+        patches:
+          - metadata:
+              name: startrek-bgp-peer
+            spec:
+              peerASN: 64502
+              peerAddress: 192.168.1.2
+              vrf: startrek-vrf
+          - metadata:
+              name: startrek-ip-pool
+            spec:
+              addresses:
+                - 192.168.12.0/24
+          - metadata:
+              name: startrek-bgp-advertisement
+            spec:
+              ipAddressPools:
+                - startrek-ip-pool
+              peers:
+                - startrek-bgp-peer
+
+policySets:
+  - name: tenancy-managed-configuration
+    description: Managed cluster tenant namespace provisioning and configuration
+    placement:
+      placementName: placement-managed-clusters

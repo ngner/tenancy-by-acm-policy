@@ -1,0 +1,12 @@
+---
+apiVersion: aaq.kubevirt.io/v1alpha1
+kind: ApplicationAwareResourceQuota
+metadata:
+  name: tenant-vm-resource-quota
+  namespace: TENANT-NAMESPACE
+spec:
+  hard:
+    requests.cpu/vmi: "4"
+    requests.memory/vmi: "16Gi"
+    limits.cpu/vmi: "4"
+    limits.memory/vmi: "16Gi"

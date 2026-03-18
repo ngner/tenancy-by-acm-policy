@@ -1,0 +1,44 @@
+{
+    "mcpServers": {
+      "filesystem": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "/home/nday/workspace/github/dusty-seahorse"
+        ]
+      },
+      "github": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-github"
+        ],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PAT}"
+        }
+      },
+      "memory": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-memory"
+        ],
+        "env": {
+          "MEMORY_FILE_PATH": "/home/nday/workspace/github/dusty-seahorse/.cursor/memory.json"
+        }
+      },
+      "kubernetes": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "mcp-server-kubernetes"
+        ],
+        "env": {
+          "KUBECONFIG": "/home/nday/.crc/machines/crc/kubeconfig"
+        },
+        "disabled": false
+      }
+    }
+  }
+  

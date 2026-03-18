@@ -1,0 +1,96 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-managed-tenancy-access-control
+placementBindingDefaults:
+  name: binding-managed-tenancy-access-control
+policyDefaults:
+  categories:
+    - AC Access Control
+  controls:
+    - AC-3 Access Enforcement
+  namespace: policies
+  policySets:
+    - tenancy-managed-access-control
+  remediationAction: enforce
+  severity: high
+  standards:
+    - NIST SP 800-53
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  # =========================================================================
+  # Starwars tenant - Managed cluster RoleBindings
+  # =========================================================================
+  - name: policy-tenant-starwars-managed-rbac
+    manifests:
+      # RoleBinding: admin in starwars namespace -> starwars-admins
+      - path: rbac/rolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-admin
+              namespace: starwars
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: admin
+            subjects:
+              - kind: Group
+                apiGroup: rbac.authorization.k8s.io
+                name: starwars-admins
+      # RoleBinding: edit in starwars namespace -> starwars-operators
+      - path: rbac/rolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-starwars-operators
+              namespace: starwars
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: edit
+            subjects:
+              - kind: Group
+                apiGroup: rbac.authorization.k8s.io
+                name: starwars-operators
+
+  # =========================================================================
+  # Startrek tenant - Managed cluster RoleBindings
+  # =========================================================================
+  - name: policy-tenant-startrek-managed-rbac
+    manifests:
+      # RoleBinding: admin in startrek namespace -> startrek-admins
+      - path: rbac/rolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-admin
+              namespace: startrek
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: admin
+            subjects:
+              - kind: Group
+                apiGroup: rbac.authorization.k8s.io
+                name: startrek-admins
+      # RoleBinding: edit in startrek namespace -> startrek-operators
+      - path: rbac/rolebinding.yaml
+        patches:
+          - metadata:
+              name: customer-startrek-operators
+              namespace: startrek
+            roleRef:
+              apiGroup: rbac.authorization.k8s.io
+              kind: ClusterRole
+              name: edit
+            subjects:
+              - kind: Group
+                apiGroup: rbac.authorization.k8s.io
+                name: startrek-operators
+
+policySets:
+  - name: tenancy-managed-access-control
+    description: Managed cluster tenant RoleBindings for namespace access
+    placement:
+      placementName: placement-managed-clusters

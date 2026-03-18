@@ -1,0 +1,12 @@
+---
+apiVersion: k8s.ovn.org/v1
+kind: UserDefinedNetwork
+metadata:
+  name: tenant-network
+  namespace: TENANT-NAMESPACE
+spec:
+  topology: Layer2
+  layer2:
+    role: Primary
+    subnets:
+      - "10.0.0.0/24"

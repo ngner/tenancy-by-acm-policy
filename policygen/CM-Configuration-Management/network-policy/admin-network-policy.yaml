@@ -1,0 +1,25 @@
+---
+apiVersion: policy.networking.k8s.io/v1alpha1
+kind: AdminNetworkPolicy
+metadata:
+  name: tenant-isolation
+spec:
+  priority: 10
+  subject:
+    namespaces:
+      matchLabels:
+        customer-namespace: ""
+  ingress:
+    - name: "deny-cross-tenant"
+      action: "Deny"
+      from:
+        - namespaces:
+            matchLabels:
+              customer-namespace: ""
+  egress:
+    - name: "deny-cross-tenant"
+      action: "Deny"
+      to:
+        - namespaces:
+            matchLabels:
+              customer-namespace: ""

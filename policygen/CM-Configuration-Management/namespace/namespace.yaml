@@ -1,0 +1,8 @@
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  labels:
+    customer-namespace: ""
+    k8s.ovn.org/primary-user-defined-network: ""
+  name: TENANT-NAMESPACE

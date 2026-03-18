@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tenant-resource-quota
+  namespace: TENANT-NAMESPACE
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "16Gi"
+    pods: "10"
+    requests.storage: "1000Gi"
+    # StorageClass-specific limits (Storage Tiering)
+    # gold-storageclass.storageclass.storage.k8s.io/requests.storage: "500Gi"
+    # silver-storageclass.storageclass.storage.k8s.io/requests.storage: "500Gi"
