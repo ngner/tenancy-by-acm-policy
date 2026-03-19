@@ -21,6 +21,31 @@ oc apply -f argocd/
 
 Update the ACM subscription image tag in `argocd/openshift-gitops-policygen.yaml` to match your installed version (currently set to v2.16).
 
+## Cluster placement
+
+The managed-cluster placement controls which clusters receive tenant policies. By default it selects **every managed cluster except the hub** (`local-cluster`). No `clusterSets` filter is applied, so it works across all ManagedClusterSets associated with the policies namespace without configuration.
+
+To switch strategies, change which file is active in `placements/kustomization.yaml`:
+
+```yaml
+resources:
+  - cluster-hub.yaml
+  # Managed-cluster placement — uncomment ONE:
+  - clusters-managed.yaml                   # All non-hub clusters (default)
+  # - clusters-managed-by-clusterset.yaml   # Specific ManagedClusterSet
+  # - clusters-managed-by-label.yaml        # Opt-in by label
+```
+
+| File | Selects | When to use |
+|---|---|---|
+| `clusters-managed.yaml` | Every cluster except `local-cluster`, any cluster set | Simplest — all spoke clusters get tenancy |
+| `clusters-managed-by-clusterset.yaml` | All clusters in a named `ManagedClusterSet` | You organise clusters into sets (`default`, `production`, etc.) |
+| `clusters-managed-by-label.yaml` | Clusters matching a label selector | Opt-in model — label a cluster `tenant-eligible=true` to include it |
+
+You can also add your own placement files alongside these and reference them in `kustomization.yaml`. As long as the Placement name matches what the PolicyGenerator `policySets` expect, it will work. This makes it straightforward to add new placements for different policy namespaces or cluster groups.
+
+The hub placement (`placements/cluster-hub.yaml`) is fixed to `local-cluster` and normally does not need changing.
+
 ![Tenancy by ACM Policy](pictures/architecture.jpg)
 
 

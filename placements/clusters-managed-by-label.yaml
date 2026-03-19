@@ -1,4 +1,6 @@
 ---
+# Select clusters by a custom label (e.g. tenant-eligible=true).
+# Apply the label to clusters: oc label managedcluster <name> tenant-eligible=true
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:
@@ -13,8 +15,5 @@ spec:
   predicates:
     - requiredClusterSelector:
         labelSelector:
-          matchExpressions:
-            - key: name
-              operator: NotIn
-              values:
-                - local-cluster
+          matchLabels:
+            tenant-eligible: "true"

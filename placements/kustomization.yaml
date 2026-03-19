@@ -4,7 +4,11 @@ kind: Kustomization
 namespace: policies
 resources:
   - cluster-hub.yaml
-  - clusters-managed.yaml
+
+  # Managed-cluster placement — uncomment ONE of the following:
+  - clusters-managed.yaml                # All non-hub clusters (no clusterSet filter)
+  # - clusters-managed-by-clusterset.yaml  # Specific ManagedClusterSet (edit clusterSets value)
+  # - clusters-managed-by-label.yaml       # Opt-in by label (tenant-eligible=true)
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous
