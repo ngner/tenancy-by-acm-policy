@@ -49,6 +49,13 @@ The hub placement (`placements/cluster-hub.yaml`) is fixed to `local-cluster` an
 ![Tenancy by ACM Policy](pictures/architecture.jpg)
 
 
+## Further reading
+
+- [Tenancy model](docs/tenancy-model.md) — how the four isolation layers work together, how tenants access VMs via the ACM console, and equivalent constructs in VMware vCloud Director
+- [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options
+
+---
+
 NOTE: If you fork and change this locally then. First find and replace the repo URL with yours.
 
 ```bash
