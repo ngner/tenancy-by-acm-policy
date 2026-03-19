@@ -1,0 +1,10 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: tenant-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.10.0/24
+  autoAssign: true

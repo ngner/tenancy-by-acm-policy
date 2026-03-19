@@ -73,7 +73,7 @@ policies:
               layer2:
                 subnets:
                   - "10.0.1.0/24"
-      - path: network/metallb-vrf-bgp.yaml
+      - path: network/metallb-bgp-peer.yaml
         patches:
           - metadata:
               name: starwars-bgp-peer
@@ -81,11 +81,15 @@ policies:
               peerASN: 64501
               peerAddress: 192.168.1.1
               vrf: starwars-vrf
+      - path: network/metallb-ip-pool.yaml
+        patches:
           - metadata:
               name: starwars-ip-pool
             spec:
               addresses:
                 - 192.168.11.0/24
+      - path: network/metallb-bgp-advertisement.yaml
+        patches:
           - metadata:
               name: starwars-bgp-advertisement
             spec:
@@ -139,7 +143,7 @@ policies:
               layer2:
                 subnets:
                   - "10.0.2.0/24"
-      - path: network/metallb-vrf-bgp.yaml
+      - path: network/metallb-bgp-peer.yaml
         patches:
           - metadata:
               name: startrek-bgp-peer
@@ -147,11 +151,15 @@ policies:
               peerASN: 64502
               peerAddress: 192.168.1.2
               vrf: startrek-vrf
+      - path: network/metallb-ip-pool.yaml
+        patches:
           - metadata:
               name: startrek-ip-pool
             spec:
               addresses:
                 - 192.168.12.0/24
+      - path: network/metallb-bgp-advertisement.yaml
+        patches:
           - metadata:
               name: startrek-bgp-advertisement
             spec:

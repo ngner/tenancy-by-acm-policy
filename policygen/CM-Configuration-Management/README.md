@@ -33,7 +33,9 @@ deny cross-tenant ingress and egress between all namespaces labeled
 | `quota/` | `application-aware-resource-quota.yaml` | ApplicationAwareResourceQuota (KubeVirt) |
 | `quota/` | `limit-range.yaml` | LimitRange |
 | `network/` | `user-defined-network.yaml` | UserDefinedNetwork (OVN L2 subnet) |
-| `network/` | `metallb-vrf-bgp.yaml` | BGPPeer + IPAddressPool + BGPAdvertisement |
+| `network/` | `metallb-bgp-peer.yaml` | BGPPeer (VRF-scoped BGP session) |
+| `network/` | `metallb-ip-pool.yaml` | IPAddressPool (tenant external IPs) |
+| `network/` | `metallb-bgp-advertisement.yaml` | BGPAdvertisement (links pool to peer) |
 | `network-policy/` | `admin-network-policy.yaml` | AdminNetworkPolicy for cross-tenant isolation |
 
 ## Adding a tenant

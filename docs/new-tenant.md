@@ -2,7 +2,7 @@
 
 This guide walks through every option available when onboarding a new tenant. A tenant gets its own namespace on each managed cluster with isolated RBAC, resource quotas, networking and external connectivity — all delivered as ACM policies through ArgoCD.
 
-Throughout this guide **`TENANT`** is used as a placeholder. Replace it with the actual tenant name (lowercase, DNS-safe).
+Throughout this guide `**TENANT**` is used as a placeholder. Replace it with the actual tenant name (lowercase, DNS-safe).
 
 ---
 
@@ -12,29 +12,35 @@ Fill in the table below before touching any YAML. Every value maps directly to a
 
 ### 1.1 Identity & RBAC
 
-| Parameter | Description | Example |
-|---|---|---|
-| **Tenant name** | Namespace name on managed clusters, used as prefix everywhere | `starwars` |
-| **Admin group** | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:admin` on the hub console | `starwars-admins` |
-| **Operator group** | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console | `starwars-operators` |
+
+| Parameter          | Description                                                                                                       | Example              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------- |
+| **Tenant name**    | Namespace name on managed clusters, used as prefix everywhere                                                     | `starwars`           |
+| **Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:admin` on the hub console | `starwars-admins`    |
+| **Operator group** | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-operators` |
+
 
 Roles are fixed per group tier:
 
-| Group tier | Managed cluster namespace role | KubeVirt role | ACM extended role | ACM fleet console role |
-|---|---|---|---|---|
-| Admin | `admin` | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:admin` |
-| Operator | `edit` | `kubevirt.io:edit` | `acm-vm-extended:view` | `acm-vm-fleet:view` |
+
+| Group tier | Managed cluster namespace role | KubeVirt role       | ACM extended role       | ACM fleet console role |
+| ---------- | ------------------------------ | ------------------- | ----------------------- | ---------------------- |
+| Admin      | `admin`                        | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:admin`   |
+| Operator   | `edit`                         | `kubevirt.io:edit`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
+
 
 If you only need one group (e.g. no operator/view split), remove the operator RoleBinding and MulticlusterRoleAssignment blocks.
 
 ### 1.2 Resource quotas
 
-| Parameter | Field | Default | Description |
-|---|---|---|---|
-| **CPU requests** | `requests.cpu` | `"4"` | Total CPU cores the tenant can request |
-| **Memory requests** | `requests.memory` | `"16Gi"` | Total memory the tenant can request |
-| **Pod count** | `pods` | `"10"` | Maximum number of pods |
-| **Storage requests** | `requests.storage` | `"1000Gi"` | Total PVC storage |
+
+| Parameter            | Field              | Default    | Description                            |
+| -------------------- | ------------------ | ---------- | -------------------------------------- |
+| **CPU requests**     | `requests.cpu`     | `"4"`      | Total CPU cores the tenant can request |
+| **Memory requests**  | `requests.memory`  | `"16Gi"`   | Total memory the tenant can request    |
+| **Pod count**        | `pods`             | `"10"`     | Maximum number of pods                 |
+| **Storage requests** | `requests.storage` | `"1000Gi"` | Total PVC storage                      |
+
 
 You can also add per-StorageClass limits. Uncomment and set these in the patch:
 
@@ -49,12 +55,14 @@ spec:
 
 These limits apply specifically to KubeVirt VirtualMachineInstance workloads and are evaluated by the AAQ controller independently of the standard ResourceQuota.
 
-| Parameter | Field | Default | Description |
-|---|---|---|---|
-| **VM CPU requests** | `requests.cpu/vmi` | `"4"` | Total vCPUs across all running VMs |
+
+| Parameter              | Field                 | Default  | Description                         |
+| ---------------------- | --------------------- | -------- | ----------------------------------- |
+| **VM CPU requests**    | `requests.cpu/vmi`    | `"4"`    | Total vCPUs across all running VMs  |
 | **VM memory requests** | `requests.memory/vmi` | `"16Gi"` | Total memory across all running VMs |
-| **VM CPU limits** | `limits.cpu/vmi` | `"4"` | CPU limit ceiling for VMs |
-| **VM memory limits** | `limits.memory/vmi` | `"16Gi"` | Memory limit ceiling for VMs |
+| **VM CPU limits**      | `limits.cpu/vmi`      | `"4"`    | CPU limit ceiling for VMs           |
+| **VM memory limits**   | `limits.memory/vmi`   | `"16Gi"` | Memory limit ceiling for VMs        |
+
 
 Set VM quotas lower than or equal to the main ResourceQuota — the AAQ quota is a subset, not additive.
 
@@ -62,18 +70,20 @@ Set VM quotas lower than or equal to the main ResourceQuota — the AAQ quota is
 
 Container defaults applied when a pod does not specify its own resource requests/limits.
 
-| Parameter | Field | Default |
-|---|---|---|
-| Default CPU | `default.cpu` | `500m` |
-| Default memory | `default.memory` | `512Mi` |
-| Default request CPU | `defaultRequest.cpu` | `100m` |
+
+| Parameter              | Field                   | Default |
+| ---------------------- | ----------------------- | ------- |
+| Default CPU            | `default.cpu`           | `500m`  |
+| Default memory         | `default.memory`        | `512Mi` |
+| Default request CPU    | `defaultRequest.cpu`    | `100m`  |
 | Default request memory | `defaultRequest.memory` | `256Mi` |
-| Max CPU | `max.cpu` | `2` |
-| Max memory | `max.memory` | `4Gi` |
-| Min CPU | `min.cpu` | `50m` |
-| Min memory | `min.memory` | `64Mi` |
-| Max PVC size | PVC `max.storage` | `500Gi` |
-| Min PVC size | PVC `min.storage` | `1Gi` |
+| Max CPU                | `max.cpu`               | `2`     |
+| Max memory             | `max.memory`            | `4Gi`   |
+| Min CPU                | `min.cpu`               | `50m`   |
+| Min memory             | `min.memory`            | `64Mi`  |
+| Max PVC size           | PVC `max.storage`       | `500Gi` |
+| Min PVC size           | PVC `min.storage`       | `1Gi`   |
+
 
 Override any of these by adding a `spec.limits` patch block to the LimitRange manifest entry. If you don't patch it, the template defaults above are used.
 
@@ -81,17 +91,21 @@ Override any of these by adding a `spec.limits` patch block to the LimitRange ma
 
 Each tenant gets a primary UserDefinedNetwork providing an isolated Layer 2 subnet via OVN-Kubernetes. The namespace is labelled with `k8s.ovn.org/primary-user-defined-network` automatically by the namespace template.
 
-| Parameter | Field | Description |
-|---|---|---|
+
+| Parameter      | Field                   | Description                                       |
+| -------------- | ----------------------- | ------------------------------------------------- |
 | **UDN subnet** | `spec.layer2.subnets[]` | The private CIDR for the tenant's overlay network |
 
-Pick a `/24` (or larger) from your internal UDN address plan. Subnets must not overlap across tenants.
 
-| Tenant | UDN subnet |
-|---|---|
-| starwars | `10.0.1.0/24` |
-| startrek | `10.0.2.0/24` |
+Pick a `/24` (or larger) from your internal UDN address plan. 
+
+
+| Tenant        | UDN subnet       |
+| ------------- | ---------------- |
+| starwars      | `10.0.1.0/24`    |
+| startrek      | `10.0.2.0/24`    |
 | *your-tenant* | *next available* |
+
 
 ### 1.6 MetalLB VRF / BGP (external connectivity)
 
@@ -99,19 +113,23 @@ Each tenant can get its own MetalLB BGP peering session in a dedicated VRF for i
 
 #### BGPPeer
 
-| Parameter | Field | Description |
-|---|---|---|
-| **Peer ASN** | `spec.peerASN` | ASN of the upstream router for this tenant |
-| **Peer address** | `spec.peerAddress` | IP address of the upstream BGP peer |
-| **VRF name** | `spec.vrf` | Dedicated VRF name (e.g. `starwars-vrf`) |
-| **Local ASN** | `spec.myASN` | Cluster-side ASN (default `64500`, shared across tenants in the template) |
+
+| Parameter        | Field              | Description                                                               |
+| ---------------- | ------------------ | ------------------------------------------------------------------------- |
+| **Peer ASN**     | `spec.peerASN`     | ASN of the upstream router for this tenant                                |
+| **Peer address** | `spec.peerAddress` | IP address of the upstream BGP peer                                       |
+| **VRF name**     | `spec.vrf`         | Dedicated VRF name (e.g. `starwars-vrf`)                                  |
+| **Local ASN**    | `spec.myASN`       | Cluster-side ASN (default `64500`, shared across tenants in the template) |
+
 
 #### IPAddressPool
 
-| Parameter | Field | Description |
-|---|---|---|
-| **Egress/Ingress addresses** | `spec.addresses[]` | CIDR or range of external IPs assigned to this tenant's services |
-| **Auto-assign** | `spec.autoAssign` | `true` by default — LoadBalancer services pick from this pool automatically |
+
+| Parameter                    | Field              | Description                                                                 |
+| ---------------------------- | ------------------ | --------------------------------------------------------------------------- |
+| **Egress/Ingress addresses** | `spec.addresses[]` | CIDR or range of external IPs assigned to this tenant's services            |
+| **Auto-assign**              | `spec.autoAssign`  | `true` by default — LoadBalancer services pick from this pool automatically |
+
 
 #### BGPAdvertisement
 
@@ -119,17 +137,19 @@ Links the pool to the peer. No additional parameters — name references are der
 
 Example allocation plan:
 
-| Tenant | Peer ASN | Peer address | VRF | IP pool |
-|---|---|---|---|---|
-| starwars | 64501 | 192.168.1.1 | starwars-vrf | 192.168.11.0/24 |
-| startrek | 64502 | 192.168.1.2 | startrek-vrf | 192.168.12.0/24 |
-| *your-tenant* | *next ASN* | *next peer* | *tenant-vrf* | *next pool* |
+
+| Tenant        | Peer ASN   | Peer address | VRF          | IP pool         |
+| ------------- | ---------- | ------------ | ------------ | --------------- |
+| starwars      | 64501      | 192.168.1.1  | starwars-vrf | 192.168.11.0/24 |
+| startrek      | 64502      | 192.168.1.2  | startrek-vrf | 192.168.12.0/24 |
+| *your-tenant* | *next ASN* | *next peer*  | *tenant-vrf* | *next pool*     |
+
 
 If a tenant does **not** need external BGP connectivity, omit the entire `metallb-vrf-bgp.yaml` manifest entry from its policy block.
 
 ### 1.7 Network isolation
 
-Cross-tenant network isolation is handled by a single cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`). It denies all ingress and egress between namespaces labelled `customer-namespace: ""`. This label is set automatically by the namespace template.
+Cross-tenant network isolation is handled by the UDNs.  But there are also additional pod network interfaces to pods (not the VM containers) and as such we can have an additional cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`) which can be added line of defence.  It denies all ingress and egress between namespaces labelled `customer-namespace: ""`. This label is set automatically by the namespace template.
 
 No per-tenant configuration is needed — the ANP applies to every tenant namespace by label. Adding a new tenant namespace with the correct label automatically brings it under the isolation policy.
 
@@ -139,11 +159,13 @@ No per-tenant configuration is needed — the ANP applies to every tenant namesp
 
 Three PolicyGenerator files need a new block each:
 
-| File | What to add |
-|---|---|
-| `policygen/AC-Access-Control/policyGenerator-hub.yaml` | Hub RBAC: fleet ClusterRoleBindings + MulticlusterRoleAssignments |
-| `policygen/AC-Access-Control/policyGenerator-managed.yaml` | Managed cluster RoleBindings in the tenant namespace |
-| `policygen/CM-Configuration-Management/policyGenerator-managed.yaml` | Namespace, quotas, LimitRange, UDN, MetalLB |
+
+| File                                                                 | What to add                                                       |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `policygen/AC-Access-Control/policyGenerator-hub.yaml`               | Hub RBAC: fleet ClusterRoleBindings + MulticlusterRoleAssignments |
+| `policygen/AC-Access-Control/policyGenerator-managed.yaml`           | Managed cluster RoleBindings in the tenant namespace              |
+| `policygen/CM-Configuration-Management/policyGenerator-managed.yaml` | Namespace, quotas, LimitRange, UDN, MetalLB                       |
+
 
 No template files need editing — all tenant-specific values go in the `patches` blocks.
 
@@ -290,7 +312,7 @@ Add a new policy block in the `policies:` list. Copy an existing tenant block an
               layer2:
                 subnets:
                   - "10.0.X.0/24"         # <-- next available UDN subnet
-      - path: network/metallb-vrf-bgp.yaml
+      - path: network/metallb-bgp-peer.yaml
         patches:
           - metadata:
               name: TENANT-bgp-peer
@@ -298,11 +320,15 @@ Add a new policy block in the `policies:` list. Copy an existing tenant block an
               peerASN: 64503              # <-- upstream ASN
               peerAddress: 192.168.1.X    # <-- upstream peer IP
               vrf: TENANT-vrf
+      - path: network/metallb-ip-pool.yaml
+        patches:
           - metadata:
               name: TENANT-ip-pool
             spec:
               addresses:
                 - 192.168.X.0/24          # <-- external IP pool
+      - path: network/metallb-bgp-advertisement.yaml
+        patches:
           - metadata:
               name: TENANT-bgp-advertisement
             spec:
