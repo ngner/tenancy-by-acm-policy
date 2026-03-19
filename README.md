@@ -52,7 +52,7 @@ The hub placement (`placements/cluster-hub.yaml`) is fixed to `local-cluster` an
 ## Further reading
 
 - [Tenancy model](docs/tenancy-model.md) — how the four isolation layers work together, how tenants access VMs via the ACM console, and equivalent constructs in VMware vCloud Director
-- [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options
+- [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options (see [§1.2 ResourceQuota vs AAQ vs LimitRange](docs/new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange))
 
 ---
 

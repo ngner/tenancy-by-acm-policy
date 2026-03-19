@@ -6,21 +6,13 @@ metadata:
   namespace: TENANT-NAMESPACE
 spec:
   limits:
+    # No default/defaultRequest/min — VM launcher pods and service pods must
+    # declare their own requests/limits explicitly. Only cap the largest single
+    # compute pod (e.g. one VM) to match the intended max VM shape.
     - type: Container
-      default:
-        cpu: "500m"
-        memory: "512Mi"
-      defaultRequest:
-        cpu: "100m"
-        memory: "256Mi"
       max:
-        cpu: "2"
-        memory: "4Gi"
-      min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "32"
+        memory: "128Gi"
     - type: PersistentVolumeClaim
       max:
-        storage: "500Gi"
-      min:
-        storage: "1Gi"
+        storage: "1Ti"

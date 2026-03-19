@@ -12,10 +12,9 @@ Targets managed clusters (`placement-managed-clusters`) and creates per-tenant:
 
 - **Namespace** with labels for tenant identification (`customer-namespace`) and
   primary user-defined network opt-in (`k8s.ovn.org/primary-user-defined-network`).
-- **ResourceQuota** setting hard limits on CPU, memory, pods, and storage requests.
-- **ApplicationAwareResourceQuota** setting VM-specific limits (`requests.cpu/vmi`,
-  `requests.memory/vmi`, etc.) for KubeVirt workloads.
-- **LimitRange** with default resource boundaries for containers in the namespace.
+- **ResourceQuota** — **namespace totals** (summed `requests.cpu` / `requests.memory` / pods / PVC storage for every pod). Default **86** CPU, **332Gi** RAM, **15** pods, **2000Gi** storage: room for **10** average VMs (see AAQ) plus a few non-VMI service pods.
+- **ApplicationAwareResourceQuota** (**AAQ**) — **VM workload totals** only (`requests.cpu/vmi`, `requests.memory/vmi`). Default **80** CPU / **320Gi** (10 × 8 vCPU × 32Gi). Complements ResourceQuota; a new VM must fit **both**.
+- **LimitRange** — **max only** for containers and PVCs (no default/min): caps any one VM pod at **8** CPU / **32Gi** and any PVC at **1Ti**; VM and service pods must set their own requests explicitly.
 - **UserDefinedNetwork** providing an L2 overlay subnet per tenant via OVN-Kubernetes.
 - **MetalLB VRF/BGP** resources (BGPPeer, IPAddressPool, BGPAdvertisement) for
   isolated external connectivity per tenant.

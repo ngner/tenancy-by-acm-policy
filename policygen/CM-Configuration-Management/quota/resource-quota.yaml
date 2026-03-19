@@ -6,10 +6,11 @@ metadata:
   namespace: TENANT-NAMESPACE
 spec:
   hard:
-    requests.cpu: "4"
-    requests.memory: "16Gi"
-    pods: "10"
-    requests.storage: "1000Gi"
+    # 10 VMs @ 8 vCPU / 32Gi (see AAQ) + ~6 CPU / 12Gi headroom for ~3 non-VMI service pods
+    requests.cpu: "86"
+    requests.memory: "332Gi"
+    pods: "15"
+    requests.storage: "2000Gi"
     # StorageClass-specific limits (Storage Tiering)
-    # gold-storageclass.storageclass.storage.k8s.io/requests.storage: "500Gi"
-    # silver-storageclass.storageclass.storage.k8s.io/requests.storage: "500Gi"
+    # gold-storageclass.storageclass.storage.k8s.io/requests.storage: "5000Gi"
+    # silver-storageclass.storageclass.storage.k8s.io/requests.storage: "5000Gi"

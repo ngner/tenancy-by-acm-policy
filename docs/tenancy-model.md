@@ -62,13 +62,13 @@ flowchart TD
         anp["AdminNetworkPolicy\n(deny cross-tenant, priority 10)"]
         subgraph tenantA ["Namespace: starwars\n(customer-namespace label)"]
             vmA[VMs]
-            quotaA["Quota / LimitRange"]
+            quotaA["RQ + AAQ + LimitRange"]
             udnA["UDN 10.0.1.0/24\n(primary network)"]
             rbacA["RoleBindings\n(starwars-admins / operators)"]
         end
         subgraph tenantB ["Namespace: startrek\n(customer-namespace label)"]
             vmB[VMs]
-            quotaB["Quota / LimitRange"]
+            quotaB["RQ + AAQ + LimitRange"]
             udnB["UDN 10.0.2.0/24\n(primary network)"]
             rbacB["RoleBindings\n(startrek-admins / operators)"]
         end
@@ -76,6 +76,18 @@ flowchart TD
     end
     policy -->|"enforces (remediationAction: enforce)"| managed
 ```
+
+### Resource caps (sizing, not isolation)
+
+Quotas and LimitRanges **do not replace** network or RBAC isolation; they cap **how much** a tenant may consume in their own namespace:
+
+| Control | What it bounds |
+| --- | --- |
+| **ResourceQuota** | **Total** CPU/memory/pods/storage **requests** summed over **all** pods and PVCs in the namespace. |
+| **ApplicationAwareResourceQuota** (**AAQ**) | **Total** CPU/memory attributed to **KubeVirt VMIs** only (the `…/vmi` counters). Parallel to ResourceQuota — both must allow a new VM to schedule. |
+| **LimitRange** | **Per** object **maximums only** here (no defaults): caps the **largest** single container pod and **per-PVC** size so VM launcher and service pods must declare their own requests. |
+
+For the full distinction and default numbers, see **[Creating a new tenant — section 1.2](new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange)**.
 
 ---
 
@@ -152,9 +164,9 @@ This section is aimed at teams migrating from or familiar with vCloud Director. 
 | OCP / ACM / KubeVirt construct | VMware vCloud Director equivalent | Notes |
 |---|---|---|
 | Kubernetes **Namespace** | **vCD Organization (Org)** | Primary tenancy boundary and administrative unit. One per tenant. |
-| **ResourceQuota** | **Org VDC Allocation Pool / Pay-As-You-Go model** | Sets CPU, memory, pod, and storage ceilings for the tenant. Equivalent to the vCPU / RAM / storage limits on an Org VDC. |
-| **ApplicationAwareResourceQuota** (AAQ) | **VM-level Allocation Pool** in an Org VDC | Specifically limits compute consumed by running VMs (`/vmi` resources), analogous to vCD guaranteeing reservations per Org VDC for VM workloads. |
-| **LimitRange** | **VM Sizing Policies / Compute Policies** | Defines default and maximum CPU/memory per container or VM. Similar to vCD VM placement and sizing policies applied to an Org VDC. |
+| **ResourceQuota** | **Org VDC Allocation Pool / Pay-As-You-Go model** | **Namespace total** — caps summed CPU/memory/pods/PVC storage for **all** workloads in the tenant. |
+| **ApplicationAwareResourceQuota** (AAQ) | **VM-only reservation / VM quota** within an Org VDC | **VMI aggregate** — caps total VM compute using `/vmi` counters; complements ResourceQuota; does not replace it. |
+| **LimitRange** | **Max VM size / max disk per vApp component** | **Per object** — here, **max only** (no default sizing); workloads declare their own reservations. |
 | **UserDefinedNetwork** (OVN L2) | **Org VDC Network** (isolated or internally-routed) | Per-tenant private Layer 2 overlay network. In vCD, an isolated Org VDC network provides the same L2 isolation with no external routing by default. |
 | **MetalLB BGPPeer + IPAddressPool + VRF** | **vCD Edge Gateway + External Network** | Provides isolated external ingress/egress per tenant with a dedicated IP pool. In vCD, each Org gets its own Edge Gateway connected to a provider external network with a dedicated IP range. |
 | **AdminNetworkPolicy** (`deny cross-tenant`) | **vCD Org VDC Firewall** (default deny between Orgs) | In vCD, traffic between different Org VDC networks is blocked by default at the Edge Gateway. The ANP provides the equivalent enforcement in OVN-Kubernetes. |

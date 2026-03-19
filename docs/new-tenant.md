@@ -31,15 +31,39 @@ Roles are fixed per group tier:
 
 If you only need one group (e.g. no operator/view split), remove the operator RoleBinding and MulticlusterRoleAssignment blocks.
 
-### 1.2 Resource quotas
+### 1.2 ResourceQuota vs ApplicationAwareResourceQuota vs LimitRange
+
+These three APIs are often mixed up. They apply **together** in the same namespace but enforce **different rules**:
 
 
-| Parameter            | Field              | Default    | Description                            |
-| -------------------- | ------------------ | ---------- | -------------------------------------- |
-| **CPU requests**     | `requests.cpu`     | `"4"`      | Total CPU cores the tenant can request |
-| **Memory requests**  | `requests.memory`  | `"16Gi"`   | Total memory the tenant can request    |
-| **Pod count**        | `pods`             | `"10"`     | Maximum number of pods                 |
-| **Storage requests** | `requests.storage` | `"1000Gi"` | Total PVC storage                      |
+| API                                                                                                                              | Scope           | What it limits                                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[ResourceQuota](https://kubernetes.io/docs/concepts/policy/resource-quotas/)**                                                 | Whole namespace | **Total** CPU/memory/storage **requests** and **limits** summed across **all** pods, plus pod count, PVC storage sum, etc. Uses plain keys like `requests.cpu`, `requests.memory`.                                         |
+| **[ApplicationAwareResourceQuota](https://kubevirt.io/user-guide/operations/application_aware_resource_quota/)** (AAQ, KubeVirt) | Whole namespace | **Total** resources attributed to **VirtualMachineInstance** workload only, using special keys like `requests.cpu/vmi`, `requests.memory/vmi`. Lets you cap aggregate VM capacity separately from other pods.              |
+| **[LimitRange](https://kubernetes.io/docs/concepts/policy/limit-range/)**                                                        | Each object     | **One** pod’s containers and **one** PVC. In this repo we only set **max** (no defaults) so nothing injects CPU/memory for VM or service pods — they must specify requests themselves. Does **not** cap tenant-wide usage. |
+
+
+**How they interact**
+
+- A virt-launcher pod requests CPU/memory like any pod → those counts go toward **ResourceQuota**.
+- The same usage is **also** tracked against **AAQ** using the `/vmi` resources. Both must have room for a new VM to schedule.
+- **LimitRange** says e.g. “no container may request more than 32 CPUs” — that is a **per-VM / per-pod ceiling**, NOT “the tenant may only use 32 CPUs in total.” **Totals** come from ResourceQuota + AAQ.
+
+**Mental model:** ResourceQuota and AAQ answer “**how much is the whole namespace allowed to consume?**” LimitRange answers “**how big is any single pod or PVC allowed to be?**”
+
+The following sections **1.3–1.5** list the default numbers for each API in this repository.
+
+### 1.3 ResourceQuota (namespace totals)
+
+Default sizing assumes **up to 10 VMs** per tenant at **8 vCPU** and **32Gi** RAM each on average (see **AAQ** in section 1.4). **ResourceQuota** must cover **all** pod requests in the namespace: VM pods **plus** a small number of non-VMI pods (e.g. three auxiliary services). The template adds **+6 CPU** and **+12Gi** headroom on top of the **80 / 320Gi** VM aggregate → **86 CPU**, **332Gi**, **15 pods** (10 VMs + services + buffer), and **2000Gi** total PVC requests (tune per your VM disk profile).
+
+
+| Parameter            | Field              | Default    | Description                                 |
+| -------------------- | ------------------ | ---------- | ------------------------------------------- |
+| **CPU requests**     | `requests.cpu`     | `"86"`     | Sum of CPU requests allowed for all pods    |
+| **Memory requests**  | `requests.memory`  | `"332Gi"`  | Sum of memory requests allowed for all pods |
+| **Pod count**        | `pods`             | `"15"`     | Max pods in the namespace                   |
+| **Storage requests** | `requests.storage` | `"2000Gi"` | Sum of PVC storage requests                 |
 
 
 You can also add per-StorageClass limits. Uncomment and set these in the patch:
@@ -51,43 +75,38 @@ spec:
     silver-storageclass.storageclass.storage.k8s.io/requests.storage: "500Gi"
 ```
 
-### 1.3 VM quotas (ApplicationAwareResourceQuota)
+### 1.4 ApplicationAwareResourceQuota (VM workload totals)
 
-These limits apply specifically to KubeVirt VirtualMachineInstance workloads and are evaluated by the AAQ controller independently of the standard ResourceQuota.
-
-
-| Parameter              | Field                 | Default  | Description                         |
-| ---------------------- | --------------------- | -------- | ----------------------------------- |
-| **VM CPU requests**    | `requests.cpu/vmi`    | `"4"`    | Total vCPUs across all running VMs  |
-| **VM memory requests** | `requests.memory/vmi` | `"16Gi"` | Total memory across all running VMs |
-| **VM CPU limits**      | `limits.cpu/vmi`      | `"4"`    | CPU limit ceiling for VMs           |
-| **VM memory limits**   | `limits.memory/vmi`   | `"16Gi"` | Memory limit ceiling for VMs        |
+These `**/vmi` fields** apply only to **KubeVirt VMI-attributed** usage (evaluated by the AAQ controller). They cap **aggregate** VM capacity in the namespace — e.g. **80** CPU and **320Gi** memory total across all running VMIs (here: 10 × 8 vCPU and 10 × 32Gi). They do **not** replace the namespace **ResourceQuota** in section 1.3; both must allow a schedule.
 
 
-Set VM quotas lower than or equal to the main ResourceQuota — the AAQ quota is a subset, not additive.
-
-### 1.4 LimitRange
-
-Container defaults applied when a pod does not specify its own resource requests/limits.
-
-
-| Parameter              | Field                   | Default |
-| ---------------------- | ----------------------- | ------- |
-| Default CPU            | `default.cpu`           | `500m`  |
-| Default memory         | `default.memory`        | `512Mi` |
-| Default request CPU    | `defaultRequest.cpu`    | `100m`  |
-| Default request memory | `defaultRequest.memory` | `256Mi` |
-| Max CPU                | `max.cpu`               | `2`     |
-| Max memory             | `max.memory`            | `4Gi`   |
-| Min CPU                | `min.cpu`               | `50m`   |
-| Min memory             | `min.memory`            | `64Mi`  |
-| Max PVC size           | PVC `max.storage`       | `500Gi` |
-| Min PVC size           | PVC `min.storage`       | `1Gi`   |
+| Parameter              | Field                 | Default   | Description                                    |
+| ---------------------- | --------------------- | --------- | ---------------------------------------------- |
+| **VM CPU requests**    | `requests.cpu/vmi`    | `"80"`    | Sum of vCPU across VMIs (example: 10 × 8)      |
+| **VM memory requests** | `requests.memory/vmi` | `"320Gi"` | Sum of memory across VMIs (example: 10 × 32Gi) |
+| **VM CPU limits**      | `limits.cpu/vmi`      | `"80"`    | Limit-side ceiling for VM workload             |
+| **VM memory limits**   | `limits.memory/vmi`   | `"320Gi"` | Limit-side ceiling for VM workload             |
 
 
-Override any of these by adding a `spec.limits` patch block to the LimitRange manifest entry. If you don't patch it, the template defaults above are used.
+Set **ResourceQuota** `requests.cpu` / `requests.memory` **≥** the CPU/memory your VM pods will request, **plus** headroom for non-VMI pods. The repo template uses **86 / 332Gi** so ten “8×32Gi” VMs still fit alongside a few small services.
 
-### 1.5 User-Defined Network (OVN L2 overlay)
+### 1.5 LimitRange (per pod and per PVC — maximums only)
+
+**LimitRange** does **not** set how many VMs or how much CPU the tenant may run in total. This repository’s template **only sets `max`** — there are **no** `default`, `defaultRequest`, or `min` entries for containers.
+
+**Why:** KubeVirt VM launcher pods and any tenant service pods should **always** declare their own `requests`/`limits`. Injecting defaults would blur VM vs helper pod sizing and can hide misconfiguration. The LimitRange exists solely to cap the **largest single compute pod** (e.g. one VM) at `**8`** CPU and `**32Gi**` memory, aligned with the planned max VM shape. **Ten** such VMs are allowed **only if** **ResourceQuota** and **AAQ** (sections 1.3–1.4) still have capacity.
+
+
+| Parameter  | Field             | Template value | Notes                                                      |
+| ---------- | ----------------- | -------------- | ---------------------------------------------------------- |
+| Max CPU    | `max.cpu`         | `32`           | **Per container** — no single pod may request more         |
+| Max memory | `max.memory`      | `128Gi`        | **Per container**                                          |
+| Max PVC    | PVC `max.storage` | `1Ti`          | **Per PVC** — total storage cap is still **ResourceQuota** |
+
+
+Patch the LimitRange manifest entry if you need different `max` values or optional extra `limits` entries (e.g. min/default) for a specific platform policy.
+
+### 1.6 User-Defined Network (OVN L2 overlay)
 
 Each tenant gets a primary UserDefinedNetwork providing an isolated Layer 2 subnet via OVN-Kubernetes. The namespace is labelled with `k8s.ovn.org/primary-user-defined-network` automatically by the namespace template.
 
@@ -107,7 +126,7 @@ Pick a `/24` (or larger) from your internal UDN address plan.
 | *your-tenant* | *next available* |
 
 
-### 1.6 MetalLB VRF / BGP (external connectivity)
+### 1.7 MetalLB VRF / BGP (external connectivity)
 
 Each tenant can get its own MetalLB BGP peering session in a dedicated VRF for isolated egress/ingress to external networks. This creates three resources per tenant.
 
@@ -147,7 +166,7 @@ Example allocation plan:
 
 If a tenant does **not** need external BGP connectivity, omit the entire `metallb-vrf-bgp.yaml` manifest entry from its policy block.
 
-### 1.7 Network isolation
+### 1.8 Network isolation
 
 Cross-tenant network isolation is handled by the UDNs.  But there are also additional pod network interfaces to pods (not the VM containers) and as such we can have an additional cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`) which can be added line of defence.  It denies all ingress and egress between namespaces labelled `customer-namespace: ""`. This label is set automatically by the namespace template.
 
@@ -283,10 +302,10 @@ Add a new policy block in the `policies:` list. Copy an existing tenant block an
               namespace: TENANT
             spec:
               hard:
-                requests.cpu: "4"          # <-- adjust
-                requests.memory: "16Gi"    # <-- adjust
-                pods: "10"                 # <-- adjust
-                requests.storage: "1000Gi" # <-- adjust
+                requests.cpu: "86"          # 80 (VMs) + headroom for ~3 service pods
+                requests.memory: "332Gi"    # 320Gi (VMs) + headroom
+                pods: "15"                  # 10 VMs + 3 pods + buffer
+                requests.storage: "2000Gi"  # tune per disk footprint
       - path: quota/application-aware-resource-quota.yaml
         patches:
           - metadata:
@@ -294,10 +313,10 @@ Add a new policy block in the `policies:` list. Copy an existing tenant block an
               namespace: TENANT
             spec:
               hard:
-                requests.cpu/vmi: "4"      # <-- adjust
-                requests.memory/vmi: "16Gi"# <-- adjust
-                limits.cpu/vmi: "4"        # <-- adjust
-                limits.memory/vmi: "16Gi"  # <-- adjust
+                requests.cpu/vmi: "80"      # 10 VMs × 8 vCPU
+                requests.memory/vmi: "320Gi" # 10 VMs × 32Gi
+                limits.cpu/vmi: "80"
+                limits.memory/vmi: "320Gi"
       - path: quota/limit-range.yaml
         patches:
           - metadata:

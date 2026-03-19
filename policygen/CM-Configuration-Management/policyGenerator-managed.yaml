@@ -44,10 +44,10 @@ policies:
               namespace: starwars
             spec:
               hard:
-                requests.cpu: "4"
-                requests.memory: "12Gi"
-                pods: "5"
-                requests.storage: "1000Gi"
+                requests.cpu: "86"
+                requests.memory: "332Gi"
+                pods: "15"
+                requests.storage: "2000Gi"
       - path: quota/application-aware-resource-quota.yaml
         patches:
           - metadata:
@@ -55,10 +55,10 @@ policies:
               namespace: starwars
             spec:
               hard:
-                requests.cpu/vmi: "4"
-                requests.memory/vmi: "12Gi"
-                limits.cpu/vmi: "4"
-                limits.memory/vmi: "12Gi"
+                requests.cpu/vmi: "80"
+                requests.memory/vmi: "320Gi"
+                limits.cpu/vmi: "80"
+                limits.memory/vmi: "320Gi"
       - path: quota/limit-range.yaml
         patches:
           - metadata:
@@ -114,10 +114,10 @@ policies:
               namespace: startrek
             spec:
               hard:
-                requests.cpu: "4"
-                requests.memory: "10Gi"
-                pods: "10"
-                requests.storage: "150Gi"
+                requests.cpu: "86"
+                requests.memory: "332Gi"
+                pods: "15"
+                requests.storage: "2000Gi"
       - path: quota/application-aware-resource-quota.yaml
         patches:
           - metadata:
@@ -125,10 +125,10 @@ policies:
               namespace: startrek
             spec:
               hard:
-                requests.cpu/vmi: "4"
-                requests.memory/vmi: "10Gi"
-                limits.cpu/vmi: "4"
-                limits.memory/vmi: "10Gi"
+                requests.cpu/vmi: "80"
+                requests.memory/vmi: "320Gi"
+                limits.cpu/vmi: "80"
+                limits.memory/vmi: "320Gi"
       - path: quota/limit-range.yaml
         patches:
           - metadata:
