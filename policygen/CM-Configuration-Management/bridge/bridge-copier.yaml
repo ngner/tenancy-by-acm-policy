@@ -1,4 +1,4 @@
-object-templates:
+object-templates-raw: |
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: v1
