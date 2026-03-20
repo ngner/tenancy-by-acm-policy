@@ -1,13 +1,11 @@
 object-templates-raw: |
-  {{- $cm := (lookup "v1" "ConfigMap" "policies" "tenant-registry") }}
-  {{- range $tenantName, $tenantYaml := $cm.data }}
-  {{- $tenant := $tenantYaml | fromYaml }}
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: customer-{{ $tenantName }}-acm-fleet-admin
+        name: customer-{{ $tenant.metadata.name }}-acm-fleet-admin
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -15,13 +13,13 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.adminGroup }}
+          name: {{ $tenant.spec.adminGroup }}
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: customer-{{ $tenantName }}-acm-fleet-operator
+        name: customer-{{ $tenant.metadata.name }}-acm-fleet-operator
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -29,5 +27,5 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.operatorGroup }}
+          name: {{ $tenant.spec.operatorGroup }}
   {{- end }}

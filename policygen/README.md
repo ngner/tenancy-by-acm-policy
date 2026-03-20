@@ -10,19 +10,19 @@ Application.
 policygen/
 ├── AC-Access-Control/             Access enforcement (AC-3)
 │   ├── kustomization.yaml         Registers policyGenerator-*.yaml as kustomize generators
-│   ├── policyGenerator-hub.yaml   Hub-side RBAC + MulticlusterRoleAssignments
+│   ├── policyGenerator-hub.yaml   Hub-side bridge ConfigMap + RBAC + MulticlusterRoleAssignments
 │   ├── policyGenerator-managed.yaml  Managed cluster RoleBindings
-│   ├── tenant-registry/           ConfigMap listing all tenants (consumed by object-templates-raw)
-│   ├── acm-finegrained-rbac/      object-templates-raw manifests for ClusterRoleBindings and MCRAs
-│   └── rbac/                      Template for namespace-scoped RoleBindings
+│   ├── acm-finegrained-rbac/      object-templates-raw: bridge generator, ClusterRoleBindings, MCRAs
+│   └── rbac/                      object-templates-raw: managed cluster RoleBindings from bridge ConfigMap
 │
 └── CM-Configuration-Management/   Configuration settings (CM-6)
     ├── kustomization.yaml         Registers policyGenerator-managed.yaml as a generator
-    ├── policyGenerator-managed.yaml  Namespaces, quotas, network config for managed clusters
-    ├── namespace/                  Namespace template
-    ├── quota/                      ResourceQuota, ApplicationAwareResourceQuota, LimitRange
-    ├── network/                    UserDefinedNetwork (primary isolation) and MetalLB VRF/BGP
-    └── network-policy/             Optional AdminNetworkPolicy (additional control)
+    ├── policyGenerator-managed.yaml  Bridge copier, namespaces, quotas, network for managed clusters
+    ├── bridge/                    Copies bridge ConfigMap from hub to managed clusters
+    ├── namespace/                 Namespace creation from bridge ConfigMap
+    ├── quota/                     ResourceQuota, ApplicationAwareResourceQuota, LimitRange from bridge ConfigMap
+    ├── network/                   UserDefinedNetwork and MetalLB VRF/BGP from bridge ConfigMap
+    └── network-policy/            Optional AdminNetworkPolicy (additional control)
 ```
 
 ## How PolicyGenerator works
@@ -32,17 +32,15 @@ When kustomize runs with `--enable-alpha-plugins`, it invokes the PolicyGenerato
 binary (installed in the ArgoCD repo-server) which reads the generator YAML and
 outputs ACM `Policy`, `PlacementBinding`, and `PolicySet` resources.
 
-The generator YAML files use two approaches depending on the target:
+All policies use `object-templates-raw` manifests that iterate Tenant CRs (on the
+hub) or the bridge ConfigMap (on managed clusters) at evaluation time using `lookup`
+and `range`. A single manifest dynamically produces resources for every tenant —
+no per-tenant policy blocks or patches are needed.
 
-- **Hub policies (AC-Access-Control)** — `object-templates-raw` manifests that
-  iterate the `tenant-registry` ConfigMap (or `Tenant` CRs from
-  `tenancy-base/`) at evaluation time using `lookup` and `range`. A single
-  manifest dynamically produces resources for every tenant.
-- **Managed-cluster policies** — a template+patch model where base templates
-  (in subdirectories) define the resource structure with placeholder values and
-  patches in the generator YAML override specific fields per tenant.
-
-Both approaches avoid duplicating entire manifests for each tenant.
+The bridge ConfigMap pattern works around ACM's `{{hub ... hub}}` limitation (no
+`range`/`if`/`:=`): a hub policy generates a ConfigMap from Tenant CRs, then
+`{{hub copyConfigMapData hub}}` replicates it to managed clusters where standard
+`{{ range }}` can iterate it.
 
 ## Adding a new control family
 

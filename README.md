@@ -6,7 +6,7 @@ Policies are organised by NIST SP 800-53 control family:
 - **AC-Access-Control** — Hub and managed cluster RBAC, ACM fine-grained RBAC, MulticlusterRoleAssignments for KubeVirt workloads.
 - **CM-Configuration-Management** — Tenant namespaces, ResourceQuotas, ApplicationAwareResourceQuotas (VM limits), LimitRanges, UserDefinedNetworks (OVN-isolated primary networks), MetalLB BGP peering, and an optional cluster-wide AdminNetworkPolicy as an additional control (not what isolates UDNs).
 
-A custom `Tenant` CRD (`dusty-seahorse.io/v1alpha1`) in `tenancy-base/` provides the single source of truth for each tenant's identity, RBAC groups, quotas, and network settings. Hub-side policies iterate all `Tenant` resources using `object-templates-raw` to generate RBAC and configuration automatically — adding a tenant is just creating a CR.
+A custom `Tenant` CRD (`dusty-seahorse.io/v1alpha1`) in `tenancy-base/` provides the single source of truth for each tenant's identity, RBAC groups, quotas, and network settings. Hub-side policies iterate all `Tenant` resources using `object-templates-raw` to generate RBAC automatically, and a bridge ConfigMap pattern copies tenant data to managed clusters where standard `{{ range }}` templates create namespaces, quotas, and network resources — adding a tenant is just creating a CR.
 
 Apply in two phases — the PolicyGenerator plugin must be running before the Applications can sync:
 

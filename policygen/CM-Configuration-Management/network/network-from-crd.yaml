@@ -1,0 +1,61 @@
+object-templates-raw: |
+  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
+  {{- range $name, $specYaml := $cm.data }}
+  {{- $tenant := $specYaml | fromYaml }}
+  {{- $net := $tenant.network | default dict }}
+  {{- if $net.udnSubnet }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: k8s.ovn.org/v1
+      kind: UserDefinedNetwork
+      metadata:
+        name: {{ $name }}-network
+        namespace: {{ $name }}
+      spec:
+        topology: Layer2
+        layer2:
+          role: Primary
+          subnets:
+            - "{{ $net.udnSubnet }}"
+  {{- end }}
+  {{- $mlb := $net.metallb | default dict }}
+  {{- if $mlb.peerASN }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: metallb.io/v1beta2
+      kind: BGPPeer
+      metadata:
+        name: {{ $name }}-bgp-peer
+        namespace: metallb-system
+      spec:
+        myASN: {{ $mlb.myASN | default 64500 }}
+        peerASN: {{ $mlb.peerASN }}
+        peerAddress: "{{ $mlb.peerAddress }}"
+        vrf: "{{ $mlb.vrf }}"
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: metallb.io/v1beta1
+      kind: IPAddressPool
+      metadata:
+        name: {{ $name }}-ip-pool
+        namespace: metallb-system
+      spec:
+        addresses:
+          {{- range $mlb.addresses }}
+          - "{{ . }}"
+          {{- end }}
+        autoAssign: true
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: metallb.io/v1beta1
+      kind: BGPAdvertisement
+      metadata:
+        name: {{ $name }}-bgp-advertisement
+        namespace: metallb-system
+      spec:
+        ipAddressPools:
+          - {{ $name }}-ip-pool
+        peers:
+          - {{ $name }}-bgp-peer
+  {{- end }}
+  {{- end }}

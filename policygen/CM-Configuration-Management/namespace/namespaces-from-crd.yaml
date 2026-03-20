@@ -1,0 +1,13 @@
+object-templates-raw: |
+  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
+  {{- range $name, $_ := $cm.data }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      kind: Namespace
+      apiVersion: v1
+      metadata:
+        labels:
+          customer-namespace: ""
+          k8s.ovn.org/primary-user-defined-network: ""
+        name: {{ $name }}
+  {{- end }}

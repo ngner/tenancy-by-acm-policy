@@ -68,23 +68,24 @@ OpenShift console (Home > Search > `Tenant`).
 
 ### How policies consume Tenant CRs
 
-Hub-targeted ACM policies use `object-templates-raw` with `lookup` and
-`range` to iterate every `Tenant` in the `tenancies` namespace at evaluation
-time:
+**Hub-targeted policies** (RBAC, bridge generation) use `object-templates-raw`
+with `lookup` and `range` to iterate every `Tenant` in the `tenancies`
+namespace directly:
 
 ```yaml
 object-templates-raw: |
   {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
-  - complianceType: mustonlyhave
-    objectDefinition:
-      ...
-      metadata:
-        name: customer-{{ $tenant.metadata.name }}-...
-      ...
-        name: {{ $tenant.spec.adminGroup }}
+  ...
   {{- end }}
 ```
 
-Adding or removing a `Tenant` CR automatically adds or removes all
-associated RBAC and configuration resources on the next policy evaluation
-cycle -- no manifest edits required.
+**Managed-cluster policies** cannot use `{{ range }}` in `{{hub ... hub}}`
+templates. Instead, a hub policy generates a bridge ConfigMap (`tenant-bridge`)
+from all Tenant CRs, and `{{hub copyConfigMapData hub}}` copies it to
+managed clusters as `tenant-data`. Managed-cluster policies then iterate
+the local ConfigMap with standard `{{ range }}` and `{{ fromYaml }}`.
+
+This is the **sole data source** for all tenant configuration. Adding or
+removing a `Tenant` CR automatically adds or removes all associated RBAC
+and configuration resources on the next policy evaluation cycle — no
+manifest edits required.

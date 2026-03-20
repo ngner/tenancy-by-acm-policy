@@ -1,0 +1,14 @@
+object-templates-raw: |
+  {{- $tenants := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: tenant-bridge
+        namespace: policies
+      data:
+        {{- range $t := $tenants }}
+        {{ $t.metadata.name }}: |
+          {{ $t.spec | toYaml | autoindent }}
+        {{- end }}

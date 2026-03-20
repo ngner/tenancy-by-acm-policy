@@ -1,0 +1,50 @@
+object-templates-raw: |
+  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
+  {{- range $name, $specYaml := $cm.data }}
+  {{- $tenant := $specYaml | fromYaml }}
+  {{- $rq := $tenant.resourceQuota | default dict }}
+  {{- $vq := $tenant.vmQuota | default dict }}
+  {{- $lr := $tenant.limitRange | default dict }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: v1
+      kind: ResourceQuota
+      metadata:
+        name: {{ $name }}-resource-quota
+        namespace: {{ $name }}
+      spec:
+        hard:
+          requests.cpu: "{{ $rq.cpu | default "86" }}"
+          requests.memory: "{{ $rq.memory | default "332Gi" }}"
+          pods: "{{ $rq.pods | default "15" }}"
+          requests.storage: "{{ $rq.storage | default "2000Gi" }}"
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: aaq.kubevirt.io/v1alpha1
+      kind: ApplicationAwareResourceQuota
+      metadata:
+        name: {{ $name }}-vm-resource-quota
+        namespace: {{ $name }}
+      spec:
+        hard:
+          requests.cpu/vmi: "{{ $vq.cpu | default "80" }}"
+          requests.memory/vmi: "{{ $vq.memory | default "320Gi" }}"
+          limits.cpu/vmi: "{{ $vq.cpu | default "80" }}"
+          limits.memory/vmi: "{{ $vq.memory | default "320Gi" }}"
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: v1
+      kind: LimitRange
+      metadata:
+        name: {{ $name }}-limit-range
+        namespace: {{ $name }}
+      spec:
+        limits:
+          - type: Container
+            max:
+              cpu: "{{ $lr.maxCpu | default "32" }}"
+              memory: "{{ $lr.maxMemory | default "128Gi" }}"
+          - type: PersistentVolumeClaim
+            max:
+              storage: "{{ $lr.maxStorage | default "1Ti" }}"
+  {{- end }}
