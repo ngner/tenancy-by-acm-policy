@@ -9,8 +9,12 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
   destinations:
     - namespace: policies
+      server: https://kubernetes.default.svc
+    - namespace: tenancies
       server: https://kubernetes.default.svc
     - namespace: openshift-gitops
       server: https://kubernetes.default.svc
@@ -31,5 +35,7 @@ spec:
       kind: PolicySet
     - group: policy.open-cluster-management.io
       kind: PolicyGenerator
+    - group: dusty-seahorse.io
+      kind: Tenant
   sourceRepos:
     - https://github.com/ngner/tenancy-by-acm-policy.git

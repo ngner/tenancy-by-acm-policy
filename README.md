@@ -6,7 +6,7 @@ Policies are organised by NIST SP 800-53 control family:
 - **AC-Access-Control** — Hub and managed cluster RBAC, ACM fine-grained RBAC, MulticlusterRoleAssignments for KubeVirt workloads.
 - **CM-Configuration-Management** — Tenant namespaces, ResourceQuotas, ApplicationAwareResourceQuotas (VM limits), LimitRanges, UserDefinedNetworks (OVN-isolated primary networks), MetalLB BGP peering, and an optional cluster-wide AdminNetworkPolicy as an additional control (not what isolates UDNs).
 
-Templates use a base+patch model so adding a new tenant is just a new policy block in the generator YAML — no manifest duplication.
+A custom `Tenant` CRD (`dusty-seahorse.io/v1alpha1`) in `tenancy-base/` provides the single source of truth for each tenant's identity, RBAC groups, quotas, and network settings. Hub-side policies iterate all `Tenant` resources using `object-templates-raw` to generate RBAC and configuration automatically — adding a tenant is just creating a CR.
 
 Apply in two phases — the PolicyGenerator plugin must be running before the Applications can sync:
 
@@ -53,6 +53,7 @@ The hub placement (`placements/cluster-hub.yaml`) is fixed to `local-cluster` an
 
 - [Tenancy model](docs/tenancy-model.md) — namespace, RBAC, UDN-centric network isolation (and optional AdminNetworkPolicy), ACM VM console access, and VMware vCloud Director equivalents
 - [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options (see [§1.2 ResourceQuota vs AAQ vs LimitRange](docs/new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange))
+- [Tenant CRD reference](tenancy-base/README.md) — CRD spec fields, minimal/full examples, and how policies consume Tenant CRs
 
 ---
 
@@ -64,4 +65,5 @@ argocd/appproject.yaml:    - https://github.com/ngner/tenancy-by-acm-policy.git
 argocd/application-ac.yaml:    repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
 argocd/application-cm.yaml:    repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
 argocd/application-placements.yaml:    repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
+argocd/application-tenancy-base.yaml:    repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
 ```

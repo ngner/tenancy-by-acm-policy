@@ -12,7 +12,8 @@ policygen/
 │   ├── kustomization.yaml         Registers policyGenerator-*.yaml as kustomize generators
 │   ├── policyGenerator-hub.yaml   Hub-side RBAC + MulticlusterRoleAssignments
 │   ├── policyGenerator-managed.yaml  Managed cluster RoleBindings
-│   ├── acm-finegrained-rbac/      Templates for ACM fleet ClusterRoleBindings and MCRAs
+│   ├── tenant-registry/           ConfigMap listing all tenants (consumed by object-templates-raw)
+│   ├── acm-finegrained-rbac/      object-templates-raw manifests for ClusterRoleBindings and MCRAs
 │   └── rbac/                      Template for namespace-scoped RoleBindings
 │
 └── CM-Configuration-Management/   Configuration settings (CM-6)
@@ -31,11 +32,17 @@ When kustomize runs with `--enable-alpha-plugins`, it invokes the PolicyGenerato
 binary (installed in the ArgoCD repo-server) which reads the generator YAML and
 outputs ACM `Policy`, `PlacementBinding`, and `PolicySet` resources.
 
-The generator YAML files use a template+patch model:
-- **Base templates** (in subdirectories) define the resource structure with placeholder values
-- **Patches** in the generator YAML override specific fields per tenant
+The generator YAML files use two approaches depending on the target:
 
-This avoids duplicating entire manifests for each tenant.
+- **Hub policies (AC-Access-Control)** — `object-templates-raw` manifests that
+  iterate the `tenant-registry` ConfigMap (or `Tenant` CRs from
+  `tenancy-base/`) at evaluation time using `lookup` and `range`. A single
+  manifest dynamically produces resources for every tenant.
+- **Managed-cluster policies** — a template+patch model where base templates
+  (in subdirectories) define the resource structure with placeholder values and
+  patches in the generator YAML override specific fields per tenant.
+
+Both approaches avoid duplicating entire manifests for each tenant.
 
 ## Adding a new control family
 

@@ -1,0 +1,36 @@
+---
+apiVersion: dusty-seahorse.io/v1alpha1
+kind: Tenant
+metadata:
+  name: starwars
+  namespace: tenancies
+spec:
+  displayName: "Star Wars"
+  owner: platform-team@example.com
+  adminGroup: starwars-admins
+  operatorGroup: starwars-operators
+
+  resourceQuota:
+    cpu: "86"
+    memory: "332Gi"
+    pods: "15"
+    storage: "2000Gi"
+
+  vmQuota:
+    cpu: "80"
+    memory: "320Gi"
+
+  limitRange:
+    maxCpu: "32"
+    maxMemory: "128Gi"
+    maxStorage: "1Ti"
+
+  network:
+    udnSubnet: "10.0.1.0/24"
+    metallb:
+      myASN: 64500
+      peerASN: 64501
+      peerAddress: "192.168.1.1"
+      vrf: starwars-vrf
+      addresses:
+        - "192.168.11.0/24"

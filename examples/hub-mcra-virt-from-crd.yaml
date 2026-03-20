@@ -1,0 +1,63 @@
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: customer-{{ $tenant.metadata.name }}-virt-admin
+        namespace: policies
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.adminGroup }}
+        roleAssignments:
+        - name: customer-{{ $tenant.metadata.name }}-virt-admin-kubevirt
+          clusterRole: kubevirt.io:admin
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: placement-managed-clusters
+              namespace: policies
+        - name: customer-{{ $tenant.metadata.name }}-virt-admin-extended
+          clusterRole: acm-vm-extended:admin
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: placement-managed-clusters
+              namespace: policies
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: customer-{{ $tenant.metadata.name }}-virt-operator
+        namespace: policies
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.operatorGroup }}
+        roleAssignments:
+        - name: customer-{{ $tenant.metadata.name }}-virt-operator-kubevirt
+          clusterRole: kubevirt.io:edit
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: placement-managed-clusters
+              namespace: policies
+        - name: customer-{{ $tenant.metadata.name }}-virt-operator-extended
+          clusterRole: acm-vm-extended:view
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: placement-managed-clusters
+              namespace: policies
+  {{- end }}

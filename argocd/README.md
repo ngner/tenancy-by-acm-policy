@@ -12,6 +12,7 @@ the default `openshift-gitops` ArgoCD instance.
 | `application-ac.yaml` | Application | Syncs `policygen/AC-Access-Control` -- tenant RBAC and ACM fine-grained access |
 | `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — namespaces, quotas, UDNs, MetalLB, optional AdminNetworkPolicy |
 | `application-placements.yaml` | Application | Syncs `placements/` -- the Placement rules referenced by generated policies |
+| `application-tenancy-base.yaml` | Application | Syncs `tenancy-base/` -- Tenant CRD and other cross-cutting tenancy prereqs |
 
 ## PolicyGenerator plugin setup
 
@@ -37,8 +38,9 @@ The policygen plugin must be active before the Applications can sync, so apply i
 oc apply -f argocd/openshift-gitops-policygen.yaml
 oc rollout status deployment/openshift-gitops-repo-server -n openshift-gitops
 
-# Phase 2: project + applications
+# Phase 2: project + applications (tenancy-base first — CRD must exist before policies reference it)
 oc apply -f argocd/appproject.yaml
+oc apply -f argocd/application-tenancy-base.yaml
 oc apply -f argocd/application-placements.yaml
 oc apply -f argocd/application-ac.yaml
 oc apply -f argocd/application-cm.yaml
@@ -48,9 +50,11 @@ oc apply -f argocd/application-cm.yaml
 
 | Application | Auto-sync | Prune | Self-heal |
 |---|---|---|---|
+| `tenancy-base` | Yes | Yes | Yes |
 | `tenancy-access-control` | Yes | No | No |
 | `tenancy-configuration-management` | Yes | Yes | Yes |
 | `tenancy-placements` | Yes | Yes | Yes |
 
-Access Control has pruning and self-heal disabled to prevent accidental removal of RBAC
-bindings during policy refactoring.
+`tenancy-base` syncs the Tenant CRD and any other cross-cutting prereqs. Pruning and
+self-heal are enabled so the CRD stays enforced. Access Control has pruning and self-heal
+disabled to prevent accidental removal of RBAC bindings during policy refactoring.
