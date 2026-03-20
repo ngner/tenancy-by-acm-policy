@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tenant-registry
+  namespace: policies
+data:
+  starwars: |
+    adminGroup: starwars-admins
+    operatorGroup: starwars-operators
+  startrek: |
+    adminGroup: startrek-admins
+    operatorGroup: startrek-operators

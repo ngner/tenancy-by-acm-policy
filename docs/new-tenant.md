@@ -8,7 +8,7 @@ Throughout this guide `**TENANT**` is used as a placeholder. Replace it with the
 
 ## 1. Decide on tenant parameters
 
-Fill in the table below before touching any YAML. Every value maps directly to a patch field in the PolicyGenerator files.
+Fill in the table below before touching any YAML. Hub RBAC values go into the tenant-registry ConfigMap; managed-cluster values go into patch fields in the PolicyGenerator files.
 
 ### 1.1 Identity & RBAC
 
@@ -178,82 +178,44 @@ No per-tenant YAML is required for the sample ANP — it matches the label appli
 
 ## 2. Files to edit
 
-Three PolicyGenerator files need a new block each:
+| File                                                                 | What to add                                                                |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `policygen/AC-Access-Control/tenant-registry/tenant-configmap.yaml`  | A new key with the tenant's name, admin group, and operator group          |
+| `policygen/AC-Access-Control/policyGenerator-managed.yaml`           | Managed cluster RoleBindings in the tenant namespace (patch-based)         |
+| `policygen/CM-Configuration-Management/policyGenerator-managed.yaml` | Namespace, quotas, LimitRange, UDN, MetalLB (patch-based)                 |
 
-
-| File                                                                 | What to add                                                       |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `policygen/AC-Access-Control/policyGenerator-hub.yaml`               | Hub RBAC: fleet ClusterRoleBindings + MulticlusterRoleAssignments |
-| `policygen/AC-Access-Control/policyGenerator-managed.yaml`           | Managed cluster RoleBindings in the tenant namespace              |
-| `policygen/CM-Configuration-Management/policyGenerator-managed.yaml` | Namespace, quotas, LimitRange, UDN, MetalLB                       |
-
-
-No template files need editing — all tenant-specific values go in the `patches` blocks.
+Hub RBAC (fleet ClusterRoleBindings and MulticlusterRoleAssignments) is generated
+automatically from the tenant-registry ConfigMap — no policy block or patches needed
+in `policyGenerator-hub.yaml`.
 
 ---
 
 ## 3. Step-by-step
 
-### 3.1 Add hub RBAC (AC — policyGenerator-hub.yaml)
+### 3.1 Add hub RBAC (AC — tenant-registry ConfigMap)
 
-Add a new policy block in the `policies:` list. Copy an existing tenant block and replace:
+Add a new key to `policygen/AC-Access-Control/tenant-registry/tenant-configmap.yaml`.
+The key is the tenant name; the value is a YAML string containing the IdP group names:
 
 ```yaml
-  - name: policy-tenant-TENANT-hub-rbac
-    manifests:
-      # ClusterRoleBinding: ACM console access for TENANT-admins
-      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-TENANT-acm-fleet-admin
-            roleRef:
-              name: acm-vm-fleet:admin
-            subjects:
-              - name: TENANT-admins
-      # ClusterRoleBinding: ACM console access for TENANT-operators
-      - path: acm-finegrained-rbac/acm-fleet-clusterrolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-TENANT-acm-fleet-operator
-            roleRef:
-              name: acm-vm-fleet:view
-            subjects:
-              - name: TENANT-operators
-      # MulticlusterRoleAssignment: virt-admin on managed clusters
-      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
-        patches:
-          - metadata:
-              name: customer-TENANT-virt-admin
-            spec:
-              subject:
-                name: TENANT-admins
-              roleAssignments:
-                - name: customer-TENANT-virt-admin-kubevirt
-                  clusterRole: kubevirt.io:admin
-                  targetNamespaces:
-                    - TENANT
-                - name: customer-TENANT-virt-admin-extended
-                  clusterRole: acm-vm-extended:admin
-                  targetNamespaces:
-                    - TENANT
-      # MulticlusterRoleAssignment: virt-operator on managed clusters
-      - path: acm-finegrained-rbac/multiclusterroleassignment-virt.yaml
-        patches:
-          - metadata:
-              name: customer-TENANT-virt-operator
-            spec:
-              subject:
-                name: TENANT-operators
-              roleAssignments:
-                - name: customer-TENANT-virt-operator-kubevirt
-                  clusterRole: kubevirt.io:edit
-                  targetNamespaces:
-                    - TENANT
-                - name: customer-TENANT-virt-operator-extended
-                  clusterRole: acm-vm-extended:view
-                  targetNamespaces:
-                    - TENANT
+data:
+  TENANT: |
+    adminGroup: TENANT-admins
+    operatorGroup: TENANT-operators
 ```
+
+That is the only change needed for hub RBAC. The `object-templates-raw` manifests in
+`acm-finegrained-rbac/` use `lookup` and `range` to iterate every key in the
+ConfigMap at policy evaluation time and automatically generate:
+
+- Two **ClusterRoleBindings** per tenant (`acm-vm-fleet:admin` for the admin group,
+  `acm-vm-fleet:view` for the operator group).
+- Two **MulticlusterRoleAssignments** per tenant (`kubevirt.io:admin` +
+  `acm-vm-extended:admin` for admins, `kubevirt.io:edit` + `acm-vm-extended:view`
+  for operators), scoped to the tenant namespace on managed clusters via
+  `placement-managed-clusters`.
+
+No policy blocks or patches in `policyGenerator-hub.yaml` need to be touched.
 
 ### 3.2 Add managed cluster RoleBindings (AC — policyGenerator-managed.yaml)
 
@@ -389,6 +351,10 @@ oc get rolebinding -n TENANT
 
 ## 5. Removing a tenant
 
-Delete the three policy blocks (hub RBAC, managed RBAC, managed config) from the PolicyGenerator files and push. The CM Application has `prune: true` so ArgoCD will remove the generated policies. ACM will then remove the resources from managed clusters.
+1. **Hub RBAC** — remove the tenant's key from `policygen/AC-Access-Control/tenant-registry/tenant-configmap.yaml`. On the next policy evaluation the `object-templates-raw` will no longer generate that tenant's ClusterRoleBindings or MulticlusterRoleAssignments. The previously created hub resources must be cleaned up manually (or via a separate `mustnothave` policy) because `mustonlyhave` only enforces objects that the template produces.
+2. **Managed RBAC** — delete the tenant's policy block from `policygen/AC-Access-Control/policyGenerator-managed.yaml`.
+3. **Managed config** — delete the tenant's policy block from `policygen/CM-Configuration-Management/policyGenerator-managed.yaml`.
+
+Push the changes. The CM Application has `prune: true` so ArgoCD will remove the generated policies for steps 2–3. ACM will then remove the resources from managed clusters.
 
 The AC Application has `prune: false` — RBAC removals require a manual sync with pruning or direct cleanup to avoid accidental access revocation during refactoring.

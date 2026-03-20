@@ -1,0 +1,33 @@
+object-templates-raw: |
+  {{- $cm := (lookup "v1" "ConfigMap" "policies" "tenant-registry") }}
+  {{- range $tenantName, $tenantYaml := $cm.data }}
+  {{- $tenant := $tenantYaml | fromYaml }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: customer-{{ $tenantName }}-acm-fleet-admin
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: acm-vm-fleet:admin
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: {{ $tenant.adminGroup }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: customer-{{ $tenantName }}-acm-fleet-operator
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: acm-vm-fleet:view
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: {{ $tenant.operatorGroup }}
+  {{- end }}

@@ -120,7 +120,7 @@ This controls what the tenant sees in the ACM UI. Without it, the tenant group h
 
 ### Tier 2 — VM operations (managed clusters, via MulticlusterRoleAssignment)
 
-`policygen/AC-Access-Control/acm-finegrained-rbac/multiclusterroleassignment-virt.yaml`
+`policygen/AC-Access-Control/acm-finegrained-rbac/hub-mcra-virt.yaml` (generated via `object-templates-raw` from the tenant-registry ConfigMap)
 
 A `MulticlusterRoleAssignment` (`rbac.open-cluster-management.io/v1beta1`) is created on the hub and evaluated by ACM's fine-grained RBAC controller. It propagates RoleBindings to every cluster matched by the Placement, scoped to the tenant namespace.
 
