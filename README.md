@@ -4,7 +4,7 @@ Use ACM PolicyGenerator with ArgoCD openshift-gitops to deliver multi-tenant iso
 
 Policies are organised by NIST SP 800-53 control family:
 - **AC-Access-Control** — Hub and managed cluster RBAC, ACM fine-grained RBAC, MulticlusterRoleAssignments for KubeVirt workloads.
-- **CM-Configuration-Management** — Tenant namespaces, ResourceQuotas, ApplicationAwareResourceQuotas (VM limits), LimitRanges, UserDefinedNetworks, MetalLB BGP peering, and AdminNetworkPolicy for cross-tenant isolation.
+- **CM-Configuration-Management** — Tenant namespaces, ResourceQuotas, ApplicationAwareResourceQuotas (VM limits), LimitRanges, UserDefinedNetworks (OVN-isolated primary networks), MetalLB BGP peering, and an optional cluster-wide AdminNetworkPolicy as an additional control (not what isolates UDNs).
 
 Templates use a base+patch model so adding a new tenant is just a new policy block in the generator YAML — no manifest duplication.
 
@@ -51,7 +51,7 @@ The hub placement (`placements/cluster-hub.yaml`) is fixed to `local-cluster` an
 
 ## Further reading
 
-- [Tenancy model](docs/tenancy-model.md) — how the four isolation layers work together, how tenants access VMs via the ACM console, and equivalent constructs in VMware vCloud Director
+- [Tenancy model](docs/tenancy-model.md) — namespace, RBAC, UDN-centric network isolation (and optional AdminNetworkPolicy), ACM VM console access, and VMware vCloud Director equivalents
 - [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options (see [§1.2 ResourceQuota vs AAQ vs LimitRange](docs/new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange))
 
 ---

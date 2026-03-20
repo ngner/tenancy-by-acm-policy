@@ -20,8 +20,8 @@ policygen/
     ├── policyGenerator-managed.yaml  Namespaces, quotas, network config for managed clusters
     ├── namespace/                  Namespace template
     ├── quota/                      ResourceQuota, ApplicationAwareResourceQuota, LimitRange
-    ├── network/                    UserDefinedNetwork and MetalLB VRF/BGP templates
-    └── network-policy/             AdminNetworkPolicy for cross-tenant isolation
+    ├── network/                    UserDefinedNetwork (primary isolation) and MetalLB VRF/BGP
+    └── network-policy/             Optional AdminNetworkPolicy (additional control)
 ```
 
 ## How PolicyGenerator works

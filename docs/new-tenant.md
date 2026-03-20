@@ -106,24 +106,24 @@ Set **ResourceQuota** `requests.cpu` / `requests.memory` **≥** the CPU/memory 
 
 Patch the LimitRange manifest entry if you need different `max` values or optional extra `limits` entries (e.g. min/default) for a specific platform policy.
 
-### 1.6 User-Defined Network (OVN L2 overlay)
+### 1.6 User-Defined Network (OVN — primary network isolation)
 
-Each tenant gets a primary UserDefinedNetwork providing an isolated Layer 2 subnet via OVN-Kubernetes. The namespace is labelled with `k8s.ovn.org/primary-user-defined-network` automatically by the namespace template.
+Each tenant gets a **primary** `UserDefinedNetwork` (UDN) via OVN-Kubernetes. The namespace is labelled with `k8s.ovn.org/primary-user-defined-network` automatically by the namespace template.
+
+**Isolation:** A UDN is a **fully isolated logical network**. Tenant workloads on different UDNs do not have a data path between each other—that is a property of the UDN model. **Overlapping or identical CIDRs** in `spec.layer2.subnets[]` across tenants are valid; each tenant’s addresses exist **only inside their own UDN**.
+
+**Still choose a subnet:** You define `spec.layer2.subnets[]` for IP addressing **within that tenant's network** (guests, internal services, operational clarity). Examples in this repo use different CIDRs for readability; you may use the same CIDR for every tenant if your standards allow it.
+
+| Parameter      | Field                   | Description                                                      |
+| -------------- | ----------------------- | ---------------------------------------------------------------- |
+| **UDN subnet** | `spec.layer2.subnets[]` | CIDR(s) for this tenant’s UDN — **need not be unique** cluster-wide |
 
 
-| Parameter      | Field                   | Description                                       |
-| -------------- | ----------------------- | ------------------------------------------------- |
-| **UDN subnet** | `spec.layer2.subnets[]` | The private CIDR for the tenant's overlay network |
-
-
-Pick a `/24` (or larger) from your internal UDN address plan. 
-
-
-| Tenant        | UDN subnet       |
-| ------------- | ---------------- |
-| starwars      | `10.0.1.0/24`    |
-| startrek      | `10.0.2.0/24`    |
-| *your-tenant* | *next available* |
+| Tenant        | Example UDN subnet (optional uniqueness for ops) |
+| ------------- | ------------------------------------------------- |
+| starwars      | `10.0.1.0/24`                                     |
+| startrek      | `10.0.2.0/24`                                     |
+| *your-tenant* | *your choice; may overlap other tenants’ UDNs*    |
 
 
 ### 1.7 MetalLB VRF / BGP (external connectivity)
@@ -166,11 +166,13 @@ Example allocation plan:
 
 If a tenant does **not** need external BGP connectivity, omit the entire `metallb-vrf-bgp.yaml` manifest entry from its policy block.
 
-### 1.8 Network isolation
+### 1.8 Optional additional control — AdminNetworkPolicy
 
-Cross-tenant network isolation is handled by the UDNs.  But there are also additional pod network interfaces to pods (not the VM containers) and as such we can have an additional cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`) which can be added line of defence.  It denies all ingress and egress between namespaces labelled `customer-namespace: ""`. This label is set automatically by the namespace template.
+**Primary** east/west isolation between tenant workloads on their primary UDNs comes from **UserDefinedNetwork** (section 1.6): separate UDNs do not forward traffic to each other, regardless of overlapping IP plans.
 
-No per-tenant configuration is needed — the ANP applies to every tenant namespace by label. Adding a new tenant namespace with the correct label automatically brings it under the isolation policy.
+This repository also ships a cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`) as a **separate** control: it denies ingress and egress between namespaces labelled `customer-namespace: ""`. That is useful as defence in depth, for namespaces or interfaces that are not solely on an isolated UDN, or where you want an explicit API-level deny rule. You could omit or replace it in your own fork; it does **not** define UDN isolation.
+
+No per-tenant YAML is required for the sample ANP — it matches the label applied by the namespace template. Removing or changing the policy is done by editing the policy manifest / generator, not by per-tenant patches.
 
 ---
 
@@ -330,7 +332,7 @@ Add a new policy block in the `policies:` list. Copy an existing tenant block an
             spec:
               layer2:
                 subnets:
-                  - "10.0.X.0/24"         # <-- next available UDN subnet
+                  - "10.0.X.0/24"         # <-- CIDR inside this tenant's UDN (may overlap other tenants)
       - path: network/metallb-bgp-peer.yaml
         patches:
           - metadata:

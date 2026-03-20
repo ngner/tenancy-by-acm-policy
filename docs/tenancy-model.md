@@ -6,18 +6,21 @@ This document describes how the policies in this repository create tenant isolat
 
 ## 1. Tenant segregation layers
 
-A tenant boundary is formed by four independent isolation layers that are enforced together. Each layer is applied to every managed cluster by ACM policy — a tenant cannot exist without all four.
+A tenant boundary is formed by **four core** controls that apply to every managed cluster: **namespace**, **RBAC**, **primary network (UserDefinedNetwork)** and **Resource quotas**.
+
+**Network isolation between tenants comes primarily from UserDefinedNetworks (UDNs):** each tenant’s workloads attach to a UDN that is a **fully isolated** logical network in OVN-Kubernetes.
+
 
 ### Layer 1: Namespace
 
 `policygen/CM-Configuration-Management/namespace/namespace.yaml`
 
-The Kubernetes namespace is the primary unit of containment. Every tenant gets exactly one namespace per managed cluster, named after the tenant. Two labels are applied at creation:
+The Kubernetes namespace is the primary unit of containment. Every tenant gets exactly one namespace per managed cluster, named after the tenant. Labels include:
 
-- `customer-namespace: ""` — marks the namespace as a tenant boundary; used by the AdminNetworkPolicy to apply cluster-wide isolation automatically to every tenant namespace without listing them individually.
-- `k8s.ovn.org/primary-user-defined-network: ""` — opts the namespace into its dedicated OVN overlay network (see Layer 4).
+- `customer-namespace: ""` — marks the namespace as a tenant workload boundary (also used by **optional** policies such as the sample `AdminNetworkPolicy` to select tenant namespaces).
+- `k8s.ovn.org/primary-user-defined-network: ""` — opts the namespace into using its **UserDefinedNetwork** as the primary pod/VM network (see Layer 3).
 
-All other controls — RBAC, quotas, network policies — are scoped to this namespace.
+All other controls — RBAC, quotas, extra network policies — are scoped to this namespace unless cluster-scoped.
 
 ### Layer 2: RBAC
 
@@ -30,26 +33,31 @@ RoleBindings inside the tenant namespace grant the tenant's IdP groups permissio
 
 These are standard Kubernetes RoleBindings — they grant no visibility into other tenants' namespaces, and no cluster-level permissions. Access to the ACM console and cross-cluster propagation is handled separately (see section 2).
 
-### Layer 3: Network isolation (AdminNetworkPolicy)
-
-`policygen/CM-Configuration-Management/network-policy/admin-network-policy.yaml`
-
-An `AdminNetworkPolicy` (priority 10) denies all ingress and egress between any two namespaces labelled `customer-namespace`. This policy is cluster-wide and operates below the pod level via OVN-Kubernetes — it cannot be overridden by namespace-scoped NetworkPolicies created by a tenant.
-
-Key properties:
-- **Automatic scope** — any new tenant namespace with the `customer-namespace` label is immediately subject to the policy; no per-tenant rule is needed.
-- **Non-overridable** — AdminNetworkPolicy is an admin-tier construct; tenant users cannot modify or delete it.
-- **Defence-in-depth** — even if the UDN subnets were misconfigured to share an address space, the ANP would still block cross-tenant traffic.
-
-### Layer 4: Network address space (UserDefinedNetwork)
+### Layer 3: Primary network isolation — UserDefinedNetwork
 
 `policygen/CM-Configuration-Management/network/user-defined-network.yaml`
 
-Each tenant receives a dedicated OVN-Kubernetes `UserDefinedNetwork` with a unique Layer 2 subnet. This is set as the **primary** network for the namespace, meaning all VM interfaces attach to this network by default.
+Each tenant receives a dedicated `UserDefinedNetwork` (UDN). It is configured as the **primary** network for the namespace, so VM interfaces attach to this network by default.
 
-Because each tenant's UDN is a separate overlay network segment, VMs in different tenant namespaces have no Layer 2 reachability to each other — even before the AdminNetworkPolicy is consulted. This provides a second, independent network isolation boundary.
+**Why this isolates tenants:** OVN-Kubernetes implements each UDN as its **own isolated virtual network**. Each UDN is an additional OVN Layer 2 Network isolated from the other networks in the clsuter.
 
-External connectivity is provided per-tenant via MetalLB VRF/BGP (`metallb-bgp-peer.yaml`, `metallb-ip-pool.yaml`, `metallb-bgp-advertisement.yaml`) — each tenant gets its own BGP peer, VRF, and IP address pool, so egress/ingress traffic is also isolated at the routing layer.
+**Address spaces:** You still define `spec.layer2.subnets[]` (or equivalent) for addressing **inside that tenant's network** (guest IPs, services, operations). That choice is **independent of isolation**: tenants **may reuse** the same CIDR ranges; overlap **does not** merge networks or create routing between UDNs.
+
+**External connectivity** is separate from isolation between tenants. This repository adds per-tenant MetalLB VRF/BGP (`metallb-bgp-peer.yaml`, `metallb-ip-pool.yaml`, `metallb-bgp-advertisement.yaml`) so each tenant can have its own edge path (BGP peer, VRF, service IP pool). That is about **north/south** traffic, not about substituting for UDN isolation.
+
+### Optional additional control: AdminNetworkPolicy
+
+`policygen/CM-Configuration-Management/network-policy/admin-network-policy.yaml`
+
+The sample cluster-wide **AdminNetworkPolicy** denies certain ingress/egress between namespaces labeled `customer-namespace`. It is an **extra** policy layer—useful for defence in depth, auditability, or shaping traffic for **non-UDN** interfaces (e.g. cluster default pod network) if those exist in your design.
+
+It is **not** the mechanism that makes UDNs isolated, and a sound tenancy design can rely on **UDN-only** isolation and implement other controls (this ANP, namespaced `NetworkPolicy`, etc.) as **separate** policy documents.
+
+Key properties of the sample ANP (when deployed):
+
+- **Automatic scope** — any namespace with the `customer-namespace` label matches; no per-tenant manifest list.
+- **Admin-tier** — tenant users cannot change AdminNetworkPolicy.
+- **Orthogonal to UDN** — written here as an additional control; you could remove or replace it without invalidating UDN isolation.
 
 ### Isolation summary
 
@@ -59,20 +67,22 @@ flowchart TD
         policy[ACM Policy Engine]
     end
     subgraph managed [Managed Cluster]
-        anp["AdminNetworkPolicy\n(deny cross-tenant, priority 10)"]
-        subgraph tenantA ["Namespace: starwars\n(customer-namespace label)"]
+        subgraph tenantA ["Namespace: starwars"]
             vmA[VMs]
             quotaA["RQ + AAQ + LimitRange"]
-            udnA["UDN 10.0.1.0/24\n(primary network)"]
-            rbacA["RoleBindings\n(starwars-admins / operators)"]
+            udnA["UDN A\n(primary isolated network)"]
+            rbacA["RoleBindings"]
         end
-        subgraph tenantB ["Namespace: startrek\n(customer-namespace label)"]
+        subgraph tenantB ["Namespace: startrek"]
             vmB[VMs]
             quotaB["RQ + AAQ + LimitRange"]
-            udnB["UDN 10.0.2.0/24\n(primary network)"]
-            rbacB["RoleBindings\n(startrek-admins / operators)"]
+            udnB["UDN B\n(primary isolated network)"]
+            rbacB["RoleBindings"]
         end
-        tenantA -. "blocked by ANP + separate UDN" .-> tenantB
+        anp["Optional AdminNetworkPolicy\n(extra deny between tenant NS)"]
+        tenantA -."no path between UDNs".- tenantB
+        anp -. "additional policy if deployed" .- tenantA
+        anp -. "additional policy if deployed" .- tenantB
     end
     policy -->|"enforces (remediationAction: enforce)"| managed
 ```
@@ -159,7 +169,7 @@ sequenceDiagram
 
 ## 3. VMware vCloud Director equivalents
 
-This section is aimed at teams migrating from or familiar with vCloud Director. The table maps every construct in this repository to its nearest vCD counterpart.
+This section is aimed at teams migrating from or familiar with vCloud Director. The table maps constructs in this repository to their nearest vCD counterpart.
 
 | OCP / ACM / KubeVirt construct | VMware vCloud Director equivalent | Notes |
 |---|---|---|
@@ -167,15 +177,14 @@ This section is aimed at teams migrating from or familiar with vCloud Director. 
 | **ResourceQuota** | **Org VDC Allocation Pool / Pay-As-You-Go model** | **Namespace total** — caps summed CPU/memory/pods/PVC storage for **all** workloads in the tenant. |
 | **ApplicationAwareResourceQuota** (AAQ) | **VM-only reservation / VM quota** within an Org VDC | **VMI aggregate** — caps total VM compute using `/vmi` counters; complements ResourceQuota; does not replace it. |
 | **LimitRange** | **Max VM size / max disk per vApp component** | **Per object** — here, **max only** (no default sizing); workloads declare their own reservations. |
-| **UserDefinedNetwork** (OVN L2) | **Org VDC Network** (isolated or internally-routed) | Per-tenant private Layer 2 overlay network. In vCD, an isolated Org VDC network provides the same L2 isolation with no external routing by default. |
-| **MetalLB BGPPeer + IPAddressPool + VRF** | **vCD Edge Gateway + External Network** | Provides isolated external ingress/egress per tenant with a dedicated IP pool. In vCD, each Org gets its own Edge Gateway connected to a provider external network with a dedicated IP range. |
-| **AdminNetworkPolicy** (`deny cross-tenant`) | **vCD Org VDC Firewall** (default deny between Orgs) | In vCD, traffic between different Org VDC networks is blocked by default at the Edge Gateway. The ANP provides the equivalent enforcement in OVN-Kubernetes. |
+| **UserDefinedNetwork** (OVN) | **Isolated Org VDC network** | **Primary inter-tenant isolation** for workloads on that network — logically separate from other tenants; **overlapping IP plans** across Orgs/UDNs are normal and do not break isolation. |
+| **MetalLB BGPPeer + IPAddressPool + VRF** | **vCD Edge Gateway + External Network** | Per-tenant north/south connectivity; distinct from UDN-to-UDN isolation. |
+| **AdminNetworkPolicy** (sample in repo) | **Additional Org/Edge firewall rules** | **Supplementary** policy — explicit deny/allow in the cluster API; **not** the same thing as UDN isolation. |
 | **RoleBinding** (`admin` / `edit` in namespace) | **vCD Org Administrator / vApp Author role** | Grants tenant users rights scoped to their Org/namespace. No cross-tenant visibility. |
 | **ACM MulticlusterRoleAssignment** (`kubevirt.io:admin`) | **vCD Organization Administrator** with VDC rights | Propagates KubeVirt VM management rights across clusters, scoped to the tenant namespace. Equivalent to giving an Org Admin the right to manage VMs within their Org VDC. |
 | **ACM fleet ClusterRoleBinding** (`acm-vm-fleet:admin`) | **vCD Tenant Portal access** for Org Administrators | Grants visibility into the management console (ACM / vCD tenant portal) for the tenant's group. Without it, the tenant cannot see the console even with underlying cluster rights. |
 | **KubeVirt VM console** (ACM proxied via `kubevirt.io:admin`) | **vCD VM Remote Console (VMRC)** via tenant portal | Browser-based VM console access proxied through the management plane. Neither the ACM user nor the vCD tenant user needs direct hypervisor access. |
 | **ACM Policy** (`remediationAction: enforce`) | **vCD Defined Entities / Org Policies** | Declarative enforcement — if a resource drifts from the desired state, ACM re-applies it. vCD Defined Entities provide similar schema-enforced resource governance within an Org. |
-| **AdminNetworkPolicy** + **UDN** (dual isolation) | **vCD network isolation** (Edge + Org VDC firewall) | vCD relies on Edge Gateway rules + Org VDC network isolation for the equivalent dual-layer approach. The OCP model enforces this at the OVN level, making it non-bypassable by tenant users. |
 
 ### Conceptual mapping
 
@@ -185,8 +194,8 @@ flowchart LR
         org[Organization]
         vdc["Org VDC\n(Allocation Pool)"]
         edgegw["Edge Gateway\n(per-Org IP pool, BGP)"]
-        orgnet["Org VDC Network\n(isolated L2)"]
-        fwrule["VDC Firewall\n(deny inter-org)"]
+        orgnet["Org VDC Network\n(isolated logical network)"]
+        fwrule["Extra firewall rules\n(optional)"]
         vmrc["VM Remote Console\n(VMRC)"]
         orgadmin["Org Admin role\n(portal access)"]
     end
@@ -194,8 +203,8 @@ flowchart LR
         ns[Namespace]
         quota["ResourceQuota +\nApplicationAwareResourceQuota"]
         metallb["MetalLB BGPPeer +\nIPAddressPool + VRF"]
-        udn["UserDefinedNetwork\n(OVN L2)"]
-        anp["AdminNetworkPolicy\n(deny cross-tenant)"]
+        udn["UserDefinedNetwork\n(primary isolation)"]
+        anp["AdminNetworkPolicy\n(optional extra)"]
         console["KubeVirt console\n(ACM proxied)"]
         fleetrole["acm-vm-fleet:admin\n+ MulticlusterRoleAssignment"]
     end

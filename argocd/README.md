@@ -10,7 +10,7 @@ the default `openshift-gitops` ArgoCD instance.
 | `openshift-gitops-policygen.yaml` | ArgoCD | Patches the default ArgoCD instance to install the PolicyGenerator kustomize plugin in the repo-server |
 | `appproject.yaml` | AppProject | Scoped project (`tenancy-policy`) restricting sync to ACM policy resource types in the `policies` namespace |
 | `application-ac.yaml` | Application | Syncs `policygen/AC-Access-Control` -- tenant RBAC and ACM fine-grained access |
-| `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` -- namespaces, quotas, network isolation |
+| `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — namespaces, quotas, UDNs, MetalLB, optional AdminNetworkPolicy |
 | `application-placements.yaml` | Application | Syncs `placements/` -- the Placement rules referenced by generated policies |
 
 ## PolicyGenerator plugin setup

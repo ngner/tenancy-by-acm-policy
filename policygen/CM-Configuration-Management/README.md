@@ -17,11 +17,9 @@ Targets managed clusters (`placement-managed-clusters`) and creates per-tenant:
 - **LimitRange** — **max only** for containers and PVCs (no default/min): caps any one VM pod at **8** CPU / **32Gi** and any PVC at **1Ti**; VM and service pods must set their own requests explicitly.
 - **UserDefinedNetwork** providing an L2 overlay subnet per tenant via OVN-Kubernetes.
 - **MetalLB VRF/BGP** resources (BGPPeer, IPAddressPool, BGPAdvertisement) for
-  isolated external connectivity per tenant.
+  per-tenant external (north/south) connectivity.
 
-A cluster-wide **AdminNetworkPolicy** (`tenant-isolation`) is also applied once to
-deny cross-tenant ingress and egress between all namespaces labeled
-`customer-namespace`.
+A cluster-wide **AdminNetworkPolicy** (`tenant-isolation`) is included as an **additional** control (explicit deny between `customer-namespace` namespaces). It is **not** what provides UDN isolation; remove or replace it if you rely solely on UDN separation and other policies.
 
 ## Templates
 
@@ -31,15 +29,13 @@ deny cross-tenant ingress and egress between all namespaces labeled
 | `quota/` | `resource-quota.yaml` | ResourceQuota |
 | `quota/` | `application-aware-resource-quota.yaml` | ApplicationAwareResourceQuota (KubeVirt) |
 | `quota/` | `limit-range.yaml` | LimitRange |
-| `network/` | `user-defined-network.yaml` | UserDefinedNetwork (OVN L2 subnet) |
+| `network/` | `user-defined-network.yaml` | UserDefinedNetwork (isolated UDN; subnet is addressing inside the tenant) |
 | `network/` | `metallb-bgp-peer.yaml` | BGPPeer (VRF-scoped BGP session) |
 | `network/` | `metallb-ip-pool.yaml` | IPAddressPool (tenant external IPs) |
 | `network/` | `metallb-bgp-advertisement.yaml` | BGPAdvertisement (links pool to peer) |
-| `network-policy/` | `admin-network-policy.yaml` | AdminNetworkPolicy for cross-tenant isolation |
+| `network-policy/` | `admin-network-policy.yaml` | Optional AdminNetworkPolicy — extra deny between tenant namespaces |
 
 ## Adding a tenant
 
 Add a new policy block in `policyGenerator-managed.yaml` that patches the templates
-with tenant-specific values: namespace name, quota limits, subnet CIDR, MetalLB BGP
-peer/ASN/VRF, and IP pool. Use the existing `starwars` and `startrek` blocks as
-reference.
+with tenant-specific values: namespace name, quota limits, UDN subnet (need not be unique across tenants), MetalLB BGP peer/ASN/VRF, and IP pool. Use the existing `starwars` and `startrek` blocks as reference.
