@@ -1,8 +1,7 @@
 object-templates-raw: |
-  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
-  {{- range $name, $specYaml := $cm.data }}
-  {{- $tenant := $specYaml | fromYaml }}
-  {{- $net := $tenant.network | default dict }}
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $name := $tenant.metadata.name }}
+  {{- $net := $tenant.spec.network | default dict }}
   {{- if $net.udnSubnet }}
   - complianceType: mustonlyhave
     objectDefinition:

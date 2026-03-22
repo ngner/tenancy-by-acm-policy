@@ -29,16 +29,18 @@ policies:
       - path: network-policy/admin-network-policy.yaml
 
   # =========================================================================
-  # All tenants — managed cluster config driven by the bridge ConfigMap.
+  # All tenants — managed cluster config driven by Tenant CRs replicated
+  # from the hub by policy-tenant-bridge (tenancies namespace).
   # To add a tenant, create a Tenant CR in the tenancies namespace on the hub.
-  # The bridge-copier syncs tenant data to managed clusters; subsequent
-  # manifests iterate it to create namespaces, quotas, and network resources.
   # =========================================================================
   - name: policy-tenant-managed-config
+    dependencies:
+      - name: policy-tenant-bridge
+        namespace: tenancies
+        compliance: Compliant
     consolidateManifests: false
     orderManifests: true
     manifests:
-      - path: bridge/bridge-copier.yaml
       - path: namespace/namespaces-from-crd.yaml
       - path: quota/quotas-from-crd.yaml
       - path: network/network-from-crd.yaml

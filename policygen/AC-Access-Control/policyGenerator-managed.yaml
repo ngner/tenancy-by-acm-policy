@@ -22,10 +22,15 @@ policyDefaults:
 
 policies:
   # =========================================================================
-  # All tenants — managed cluster RoleBindings driven by the bridge ConfigMap.
+  # All tenants — managed cluster RoleBindings driven by Tenant CRs
+  # replicated from the hub by policy-tenant-bridge (tenancies namespace).
   # To add a tenant, create a Tenant CR in the tenancies namespace on the hub.
   # =========================================================================
   - name: policy-tenant-managed-rbac
+    dependencies:
+      - name: policy-tenant-bridge
+        namespace: tenancies
+        compliance: Compliant
     consolidateManifests: false
     manifests:
       - path: rbac/managed-rolebindings.yaml

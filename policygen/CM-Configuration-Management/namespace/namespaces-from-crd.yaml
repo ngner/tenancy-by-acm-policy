@@ -1,6 +1,5 @@
 object-templates-raw: |
-  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
-  {{- range $name, $_ := $cm.data }}
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
   - complianceType: mustonlyhave
     objectDefinition:
       kind: Namespace
@@ -9,5 +8,5 @@ object-templates-raw: |
         labels:
           customer-namespace: ""
           k8s.ovn.org/primary-user-defined-network: ""
-        name: {{ $name }}
+        name: {{ $tenant.metadata.name }}
   {{- end }}

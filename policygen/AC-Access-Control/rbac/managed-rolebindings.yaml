@@ -1,7 +1,6 @@
 object-templates-raw: |
-  {{- $cm := (lookup "v1" "ConfigMap" "tenancies" "tenant-data") }}
-  {{- range $name, $specYaml := $cm.data }}
-  {{- $tenant := $specYaml | fromYaml }}
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $name := $tenant.metadata.name }}
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
@@ -16,7 +15,7 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.adminGroup }}
+          name: {{ $tenant.spec.adminGroup }}
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
@@ -31,5 +30,5 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.operatorGroup }}
+          name: {{ $tenant.spec.operatorGroup }}
   {{- end }}
