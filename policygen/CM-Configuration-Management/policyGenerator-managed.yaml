@@ -33,13 +33,13 @@ policies:
   # from the hub by policy-tenant-bridge (tenancies namespace).
   # To add a tenant, create a Tenant CR in the tenancies namespace on the hub.
   # =========================================================================
-  - name: policy-tenant-managed-config
+  - name: policy-tenant-crd-create
+    manifests:
+    - path: tenancy/tenant-crd.yaml
+  - name: policy-tenant-create-resources
     dependencies:
-      - name: policy-tenant-bridge
-        namespace: tenancies
+      - name: policy-tenant-crd-create
         compliance: Compliant
-    consolidateManifests: false
-    orderManifests: true
     manifests:
       - path: namespace/namespaces-from-crd.yaml
       - path: quota/quotas-from-crd.yaml

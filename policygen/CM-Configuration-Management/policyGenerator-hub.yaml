@@ -29,15 +29,18 @@ policies:
   #   - ClusterRoleBindings for ACM console access
   #   - MulticlusterRoleAssignments for managed-cluster VM RBAC
   # =========================================================================
-  - name: policy-tenant-hub-rbac
-    consolidateManifests: false
-    orderManifests: true
+  - name: policy-tenant-crd-create
     manifests:
-      - path: acm-finegrained-rbac/hub-fleet-crbs.yaml
-      - path: acm-finegrained-rbac/hub-mcra-virt.yaml
+    - path: tenancy/tenant-crd.yaml
+  - name: policy-tenant-bridge
+    namespace: tenancies
+    manifests:
+    - path: tenancy/bridge-tenants.yaml
+    dependencies:
+      - name: policy-tenant-crd-create
 
 policySets:
-  - name: tenancy-hub-access-control
-    description: Hub-side tenant RBAC and MulticlusterRoleAssignments for managed cluster VM access
+  - name: tenancy-hub-configuration-management
+    description: Hub-side tenant configuration management
     placement:
       placementName: placement-hub-clusters
