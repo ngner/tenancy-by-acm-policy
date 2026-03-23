@@ -1,4 +1,8 @@
 ---
+
+## This application renders the Tenant CRs and the Tenant CRD in the tenancies namespace.
+# This will GitOps the tenancy creation.  One could create the tenants by GUI then copy to the tenancies folder.
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -10,7 +14,7 @@ spec:
     server: https://kubernetes.default.svc
   project: tenancy-policy
   source:
-    path: tenancy-base
+    path: tenancies
     repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
     targetRevision: master
   syncPolicy:

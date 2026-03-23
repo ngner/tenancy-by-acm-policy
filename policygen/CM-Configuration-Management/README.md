@@ -44,13 +44,12 @@ are applied.
 
 | Directory | File | Resource |
 |---|---|---|
-| `bridge/` | `tenant-crd-deploy.yaml` | Deploys the Tenant CRD to managed clusters (prerequisite for CR replication) |
-| `bridge/` | `bridge-tenants.yaml` | `{{hub range hub}}` — replicates every Tenant CR from hub to managed clusters |
+| `tenancy/` | `tenant-crd.yaml` | Deploys the Tenant CRD to managed clusters (prerequisite for CR replication) |
+| `tenancy/` | `bridge-tenants.yaml` | `{{hub range hub}}` — replicates every Tenant CR from hub to managed clusters |
 | `namespace/` | `namespaces-from-crd.yaml` | `object-templates-raw` — creates a Namespace per Tenant CR |
 | `quota/` | `quotas-from-crd.yaml` | `object-templates-raw` — creates ResourceQuota, AAQ, and LimitRange per Tenant CR |
 | `network/` | `network-from-crd.yaml` | `object-templates-raw` — creates UDN and MetalLB resources per Tenant CR (conditional on spec fields) |
 | `network-policy/` | `admin-network-policy.yaml` | Optional AdminNetworkPolicy — extra deny between tenant namespaces |
-| `bridge/` | `bridge-copier.yaml` | Legacy — previously copied the bridge ConfigMap; no longer referenced by any PolicyGenerator |
 
 ## Adding a tenant
 

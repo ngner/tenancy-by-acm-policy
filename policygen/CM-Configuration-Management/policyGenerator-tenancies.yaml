@@ -12,11 +12,11 @@ policyDefaults:
     - CM-6 Configuration Settings
   namespace: tenancies
   policySets:
-    - tenancy-bridge
+    - tenancy
   remediationAction: enforce
   severity: high
   standards:
-    - NIST SP 800-53
+    - NIST SP 800-53  
   complianceType: musthave
   consolidateManifests: false
 
@@ -30,9 +30,9 @@ policies:
     consolidateManifests: false
     orderManifests: true
     manifests:
-      - path: bridge/tenant-crd-deploy.yaml
+      - path: tenancy/tenant-crd.yaml
         complianceType: musthave
-      - path: bridge/bridge-tenants.yaml
+      - path: tenancy/bridge-tenants.yaml
 
 policySets:
   - name: tenancy-bridge
