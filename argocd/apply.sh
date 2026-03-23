@@ -41,7 +41,7 @@ echo
 # Phase 2: project + applications (order matters: CRD before policies)
 echo "--- Phase 2: AppProject + Applications (targetRevision: $BRANCH) ---"
 oc apply -f "$SCRIPT_DIR/appproject.yaml"
-apply "$SCRIPT_DIR/application-tenancy-base.yaml"
+apply "$SCRIPT_DIR/application-tenancies.yaml"
 apply "$SCRIPT_DIR/application-placements.yaml"
 apply "$SCRIPT_DIR/application-ac.yaml"
 apply "$SCRIPT_DIR/application-cm.yaml"
