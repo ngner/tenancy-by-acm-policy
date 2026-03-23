@@ -7,12 +7,12 @@ placementBindingDefaults:
   name: binding-hub-tenancy-access-control
 policyDefaults:
   categories:
-    - AC Access Control
+    - CM Configuration Management
   controls:
-    - AC-3 Access Enforcement
-  namespace: policies
+    - CM-6 Configuration Settings
+  namespace: tenancies
   policySets:
-    - tenancy-hub-access-control
+    - tenancy-managed-configuration
   remediationAction: enforce
   severity: high
   standards:
@@ -21,19 +21,10 @@ policyDefaults:
   consolidateManifests: false
 
 policies:
-  # =========================================================================
-  # All tenants — hub RBAC driven by Tenant CRs in the tenancies namespace.
-  # To add a tenant, create a Tenant CR. The object-templates-raw manifests
-  # iterate all Tenant CRs at evaluation time and generate:
-  #   - bridge ConfigMap (consumed by managed-cluster policies)
-  #   - ClusterRoleBindings for ACM console access
-  #   - MulticlusterRoleAssignments for managed-cluster VM RBAC
-  # =========================================================================
   - name: policy-tenant-crd-create
     manifests:
     - path: tenancy/tenant-crd.yaml
   - name: policy-tenant-bridge
-    namespace: tenancies
     manifests:
     - path: tenancy/bridge-tenants.yaml
     dependencies:
