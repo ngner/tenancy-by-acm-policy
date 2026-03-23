@@ -2,14 +2,14 @@
 apiVersion: policy.open-cluster-management.io/v1
 kind: PolicyGenerator
 metadata:
-  name: policy-hub-tenancy-access-control
+  name: policy-tenancy-hub-configuration-management
 placementBindingDefaults:
-  name: binding-hub-tenancy-access-control
+  name: placement-hub-clusters
 policyDefaults:
   categories:
     - CM Configuration Management
   controls:
-    - CM-6 Configuration Settings
+    - Tenant Isolation
   namespace: tenancies
   policySets:
     - tenancy-managed-configuration
