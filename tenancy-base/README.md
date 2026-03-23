@@ -15,9 +15,12 @@ by multiple policy families (AC, CM, and any future families).
 
 The `Tenant` custom resource is the single source of truth for a tenant's
 identity, RBAC groups, resource limits, and network configuration. Hub-side
-ACM policies iterate all `Tenant` objects in the `tenancies` namespace using
-`object-templates-raw` and dynamically generate the required Kubernetes and
-ACM resources (ClusterRoleBindings, MulticlusterRoleAssignments, etc.).
+ACM fine-grained RBAC policies iterate all `Tenant` objects in the `tenancies`
+namespace using `object-templates-raw` and dynamically generate
+`ClusterRoleBinding`s (fleet console access) and `MulticlusterRoleAssignment`s
+(KubeVirt/VM access on managed clusters). Tenant CRs are also replicated to
+managed clusters where further policies create namespaces, quotas, network
+resources, and RoleBindings.
 
 ### Spec fields
 
@@ -68,9 +71,10 @@ OpenShift console (Home > Search > `Tenant`).
 
 ### How policies consume Tenant CRs
 
-**Hub-targeted policies** (RBAC, bridge generation) use `object-templates-raw`
+**Hub-targeted policies** (ACM fine-grained RBAC) use `object-templates-raw`
 with `lookup` and `range` to iterate every `Tenant` in the `tenancies`
-namespace directly:
+namespace directly, generating `ClusterRoleBinding`s and
+`MulticlusterRoleAssignment`s:
 
 ```yaml
 object-templates-raw: |
@@ -79,13 +83,23 @@ object-templates-raw: |
   {{- end }}
 ```
 
-**Managed-cluster policies** cannot use `{{ range }}` in `{{hub ... hub}}`
-templates. Instead, a hub policy generates a bridge ConfigMap (`tenant-bridge`)
-from all Tenant CRs, and `{{hub copyConfigMapData hub}}` copies it to
-managed clusters as `tenant-data`. Managed-cluster policies then iterate
-the local ConfigMap with standard `{{ range }}` and `{{ fromYaml }}`.
+**Tenant CR replication** — a policy in the `tenancies` namespace uses
+`{{hub range hub}}` hub templates to replicate every Tenant CR to managed
+clusters. The Tenant CRD is deployed first so managed clusters can store
+the replicated CRs.
 
-This is the **sole data source** for all tenant configuration. Adding or
-removing a `Tenant` CR automatically adds or removes all associated RBAC
-and configuration resources on the next policy evaluation cycle — no
+**Managed-cluster policies** iterate the local Tenant CRs using the same
+`lookup` and `range` pattern to create namespaces, quotas, network resources,
+and RoleBindings:
+
+```yaml
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  ...
+  {{- end }}
+```
+
+The `Tenant` CR is the **sole data source** for all tenant configuration.
+Adding or removing a `Tenant` CR automatically adds or removes all associated
+RBAC and configuration resources on the next policy evaluation cycle — no
 manifest edits required.

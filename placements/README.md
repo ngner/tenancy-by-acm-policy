@@ -3,7 +3,7 @@
 ACM Placement rules that determine which clusters receive the generated policies.
 The active placements are controlled by `kustomization.yaml`.
 
-## Active placements
+## Active placements (`placements/`, namespace: `policies`)
 
 | File | Placement name | Targets |
 |---|---|---|
@@ -11,6 +11,22 @@ The active placements are controlled by `kustomization.yaml`.
 | `clusters-managed.yaml` | `placement-managed-clusters` | Every managed cluster except the hub — no cluster set filter |
 
 The kustomization sets `namespace: policies` on all resources in this directory.
+
+## Tenancies placements (`placements/tenancies/`, namespace: `tenancies`)
+
+The `tenancies/` subdirectory contains placements for policies deployed in the
+`tenancies` namespace (e.g. the Tenant CR replication policy). It has its own
+`ManagedClusterSetBinding` to bind a `ManagedClusterSet` to the `tenancies`
+namespace, which is required for Placements there to select managed clusters.
+
+| File | Kind | Purpose |
+|---|---|---|
+| `managed-cluster-set-binding.yaml` | ManagedClusterSetBinding | Binds the `default` ManagedClusterSet to the `tenancies` namespace |
+| `placement-managed-clusters.yaml` | Placement | Selects all non-hub managed clusters from the `default` cluster set |
+
+This separation supports multiple `tenancies-*` namespaces with different
+cluster-set bindings, allowing distinct groups of tenants to target different
+sets of managed clusters.
 
 ## How placements are used
 

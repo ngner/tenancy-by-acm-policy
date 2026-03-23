@@ -4,16 +4,28 @@ Policies in the **CM (Configuration Management)** family, mapped to NIST SP 800-
 control **CM-6 Configuration Settings**. These policies provision and configure tenant
 namespaces on managed clusters.
 
-## PolicyGenerator
+## PolicyGenerators
+
+### policyGenerator-tenancies.yaml
+
+Lives in the `tenancies` namespace (alongside the Tenant CRs) and creates:
+
+- **Tenant CRD deploy** — ensures the `Tenant` CRD exists on every managed cluster
+  before any Tenant CRs are created.
+- **Tenant CR replication** — uses `{{hub range hub}}` hub templates to iterate
+  every `Tenant` CR in the `tenancies` namespace and replicate it to managed clusters.
+  Deploying the policy in the same namespace as the Tenant CRs avoids cross-namespace
+  RBAC requirements for hub template `lookup`.
+
+Placement is handled by `placement-tenancies-managed-clusters` in the `tenancies`
+namespace, which has its own `ManagedClusterSetBinding`.
 
 ### policyGenerator-managed.yaml
 
-Targets managed clusters (`placement-managed-clusters`) and creates:
+Targets managed clusters (`placement-managed-clusters`) and depends on
+`policy-tenant-bridge` (tenancies namespace) being Compliant — ensuring the Tenant
+CRD and replicated Tenant CRs are present before downstream resources are created.
 
-- **Bridge copy** — the `bridge-copier` manifest creates a `tenancies` namespace on
-  each managed cluster and copies the hub's `tenant-bridge` ConfigMap into it as
-  `tenant-data` using `{{hub copyConfigMapData hub}}`. All subsequent manifests
-  read this local ConfigMap.
 - **Namespace** with labels for tenant identification (`customer-namespace`) and
   primary user-defined network opt-in (`k8s.ovn.org/primary-user-defined-network`).
 - **ResourceQuota** — **namespace totals** (summed `requests.cpu` / `requests.memory` / pods / PVC storage for every pod). Default **86** CPU, **332Gi** RAM, **15** pods, **2000Gi** storage: room for **10** average VMs (see AAQ) plus a few non-VMI service pods.
@@ -25,21 +37,23 @@ Targets managed clusters (`placement-managed-clusters`) and creates:
 
 A cluster-wide **AdminNetworkPolicy** (`tenant-isolation`) is included as an **additional** control (explicit deny between `customer-namespace` namespaces). It is **not** what provides UDN isolation; remove or replace it if you rely solely on UDN separation and other policies.
 
-`orderManifests: true` ensures the bridge ConfigMap is copied before namespaces are
-created, which must exist before quotas and network resources are applied.
+`orderManifests: true` ensures namespaces exist before quotas and network resources
+are applied.
 
 ## Manifests
 
 | Directory | File | Resource |
 |---|---|---|
-| `bridge/` | `bridge-copier.yaml` | Copies `tenant-bridge` ConfigMap from hub to `tenant-data` in `tenancies` namespace on managed clusters |
-| `namespace/` | `namespaces-from-crd.yaml` | `object-templates-raw` — creates a Namespace per tenant from the bridge ConfigMap |
-| `quota/` | `quotas-from-crd.yaml` | `object-templates-raw` — creates ResourceQuota, AAQ, and LimitRange per tenant |
-| `network/` | `network-from-crd.yaml` | `object-templates-raw` — creates UDN and MetalLB resources per tenant (conditional on CRD fields) |
+| `bridge/` | `tenant-crd-deploy.yaml` | Deploys the Tenant CRD to managed clusters (prerequisite for CR replication) |
+| `bridge/` | `bridge-tenants.yaml` | `{{hub range hub}}` — replicates every Tenant CR from hub to managed clusters |
+| `namespace/` | `namespaces-from-crd.yaml` | `object-templates-raw` — creates a Namespace per Tenant CR |
+| `quota/` | `quotas-from-crd.yaml` | `object-templates-raw` — creates ResourceQuota, AAQ, and LimitRange per Tenant CR |
+| `network/` | `network-from-crd.yaml` | `object-templates-raw` — creates UDN and MetalLB resources per Tenant CR (conditional on spec fields) |
 | `network-policy/` | `admin-network-policy.yaml` | Optional AdminNetworkPolicy — extra deny between tenant namespaces |
+| `bridge/` | `bridge-copier.yaml` | Legacy — previously copied the bridge ConfigMap; no longer referenced by any PolicyGenerator |
 
 ## Adding a tenant
 
-Create a `Tenant` CR in the `tenancies` namespace on the hub. The bridge ConfigMap
-updates automatically, is copied to managed clusters, and all managed-cluster resources
-(namespaces, quotas, network) are generated from it.
+Create a `Tenant` CR in the `tenancies` namespace on the hub. The hub-side policy
+re-evaluates, replicates the new Tenant CR to managed clusters, and all managed-cluster
+resources (namespaces, quotas, network) are generated from it automatically.
