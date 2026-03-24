@@ -104,7 +104,7 @@ resources:
 
 The hub placement (`placements/policies/placement-hub.yaml`) is fixed to `local-cluster` and normally does not need changing.
 
-![Tenancy by ACM Policy](pictures/architecture.jpg)
+![Tenancy by ACM Policy](pictures/architecture.png)
 
 
 ## Further reading
