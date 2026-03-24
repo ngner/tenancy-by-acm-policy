@@ -1,0 +1,80 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: tenancy-cm-managed
+placementBindingDefaults:
+  name: binding-tenancy-managed-cm
+policyDefaults:
+  categories:
+    - CM Configuration Management
+  standards:
+    - Multi-Tenant Isolation
+  controls:
+    - Provision Tenant Resources
+  namespace: policies
+  policySets:
+    - tenancy-managed-configuration
+  remediationAction: enforce
+  severity: high
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  - name: tenancy-managed-admin-network-policy
+    controls:
+      - Enforce Cross-Tenant Network Deny
+    manifests:
+      - path: network-policy/admin-network-policy.yaml
+
+  - name: tenancy-managed-namespaces
+    controls:
+      - Provision Tenant Namespaces
+    dependencies:
+      - name: tenancy-managed-tenant-replication
+        namespace: tenancies
+        compliance: Compliant
+    manifests:
+      - path: namespace/namespaces-from-crd.yaml
+
+  - name: tenancy-managed-aaq-enable
+    controls:
+      - Enable VM-Aware Quota Controller
+    manifests:
+      - path: quota/hyperconverged-aaq-enabled.yaml
+    complianceType: musthave
+
+  - name: tenancy-managed-quotas
+    controls:
+      - Enforce Tenant Resource Quotas
+    dependencies:
+      - name: tenancy-managed-namespaces
+        compliance: Compliant
+    manifests:
+      - path: quota/quotas-from-crd.yaml
+
+  - name: tenancy-managed-udn-network
+    controls:
+      - Isolate Tenant Networks via UDN
+    dependencies:
+      - name: tenancy-managed-namespaces
+        compliance: Compliant
+    manifests:
+      - path: network/udn-from-crd.yaml
+
+  - name: tenancy-managed-metallb-bgp
+    controls:
+      - Configure Tenant External Connectivity via BGP
+    dependencies:
+      - name: tenancy-managed-namespaces
+        compliance: Compliant
+    manifests:
+      - path: metallb/bgp-peer-from-crd.yaml
+      - path: metallb/ip-address-pool-from-crd.yaml
+      - path: metallb/bgp-advertisement-from-crd.yaml
+
+policySets:
+  - name: tenancy-managed-configuration
+    description: "Managed cluster tenant provisioning: namespaces, resource quotas, UDN network isolation, and MetalLB BGP external connectivity"
+    placement:
+      placementName: policies-placement-managed-clusters

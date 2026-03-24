@@ -1,0 +1,17 @@
+---
+# Select clusters from a specific ManagedClusterSet.
+# Change the clusterSets value to match your environment.
+# Common values: "default", "managed", or a custom set name.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: policies-placement-managed-clusters
+  namespace: policies
+spec:
+  clusterSets:
+    - default
+  tolerations:
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists

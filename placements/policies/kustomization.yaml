@@ -3,11 +3,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: policies
 resources:
-  - cluster-hub.yaml
+  - placement-hub.yaml
   # Managed-cluster placement — uncomment ONE of the following:
-  - clusters-not-local-cluster.yaml               # All non-hub clusters (no clusterSet filter)
-  # - clusters-managed-by-clusterset.yaml  # Specific ManagedClusterSet (edit clusterSets value)
-  # - clusters-managed-by-label.yaml       # Opt-in by label (tenant-eligible=true)
+  - placement-managed.yaml                         # All non-hub clusters (no clusterSet filter)
+  # - placement-managed-by-clusterset.yaml  # Specific ManagedClusterSet (edit clusterSets value)
+  # - placement-managed-by-label.yaml       # Opt-in by label (tenant-eligible=true)
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous

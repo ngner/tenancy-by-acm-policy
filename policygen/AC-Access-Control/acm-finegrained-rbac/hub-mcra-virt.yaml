@@ -5,14 +5,14 @@ object-templates-raw: |
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: customer-{{ $tenant.metadata.name }}-virt-admin
+        name: {{ $tenant.metadata.name }}-tenant-admin-virt
         namespace: policies
       spec:
         subject:
           kind: Group
           name: {{ $tenant.spec.adminGroup }}
         roleAssignments:
-        - name: customer-{{ $tenant.metadata.name }}-virt-admin-kubevirt
+        - name: {{ $tenant.metadata.name }}-tenant-admin-virt-kubevirt
           clusterRole: kubevirt.io:admin
           targetNamespaces:
           - {{ $tenant.metadata.name }}
@@ -21,7 +21,7 @@ object-templates-raw: |
             placements:
             - name: policies-placement-managed-clusters
               namespace: policies
-        - name: customer-{{ $tenant.metadata.name }}-virt-admin-extended
+        - name: {{ $tenant.metadata.name }}-tenant-admin-virt-extended
           clusterRole: acm-vm-extended:admin
           targetNamespaces:
           - {{ $tenant.metadata.name }}
@@ -35,14 +35,14 @@ object-templates-raw: |
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: customer-{{ $tenant.metadata.name }}-virt-operator
+        name: {{ $tenant.metadata.name }}-tenant-operator-virt
         namespace: policies
       spec:
         subject:
           kind: Group
           name: {{ $tenant.spec.operatorGroup }}
         roleAssignments:
-        - name: customer-{{ $tenant.metadata.name }}-virt-operator-kubevirt
+        - name: {{ $tenant.metadata.name }}-tenant-operator-virt-kubevirt
           clusterRole: kubevirt.io:edit
           targetNamespaces:
           - {{ $tenant.metadata.name }}
@@ -51,7 +51,7 @@ object-templates-raw: |
             placements:
             - name: policies-placement-managed-clusters
               namespace: policies
-        - name: customer-{{ $tenant.metadata.name }}-virt-operator-extended
+        - name: {{ $tenant.metadata.name }}-tenant-operator-virt-extended
           clusterRole: acm-vm-extended:view
           targetNamespaces:
           - {{ $tenant.metadata.name }}
