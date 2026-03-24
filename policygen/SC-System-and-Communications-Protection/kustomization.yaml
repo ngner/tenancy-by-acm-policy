@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-generators: 
-  - hub-cluster-tenancy-policygenerator.yaml
-  - managed-cluster-tenancy-policygenerator.yaml
+generators:
+  - policygenerator-hub.yaml
+  - policygenerator-managed.yaml
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous

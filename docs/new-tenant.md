@@ -18,17 +18,17 @@ Fill in the table below before creating the Tenant CR. All fields except `adminG
 | Parameter          | Description                                                                                                       | Example              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------- |
 | **Tenant name**    | Namespace name on managed clusters, used as prefix everywhere                                                     | `starwars`           |
-| **Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:admin` on the hub console | `starwars-admins`    |
-| **Operator group** | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-operators` |
+| **Tenant-Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:admin` on the hub console | `starwars-admins`    |
+| **Tenant-Operator group** | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-operators` |
 
 
 Roles are fixed per group tier:
 
 
-| Group tier | Managed cluster namespace role | KubeVirt role       | ACM extended role       | ACM fleet console role |
-| ---------- | ------------------------------ | ------------------- | ----------------------- | ---------------------- |
-| Admin      | `admin`                        | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:admin`   |
-| Operator   | `edit`                         | `kubevirt.io:edit`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
+| Group tier       | Managed cluster namespace role | KubeVirt role       | ACM extended role       | ACM fleet console role |
+| ---------------- | ------------------------------ | ------------------- | ----------------------- | ---------------------- |
+| Tenant-Admin     | `admin`                        | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:admin`   |
+| Tenant-Operator  | `edit`                         | `kubevirt.io:edit`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
 
 
 If you only need one group (e.g. no operator/view split), remove the operator RoleBinding and MulticlusterRoleAssignment blocks.
@@ -123,14 +123,6 @@ Each tenant can get its own MetalLB BGP peering session in a dedicated VRF for i
 
 If the `network.metallb` section is omitted from the Tenant CR, no MetalLB resources are created.
 
-### 1.8 Optional additional control — AdminNetworkPolicy
-
-**Primary** east/west isolation between tenant workloads on their primary UDNs comes from **UserDefinedNetwork** (section 1.6): separate UDNs do not forward traffic to each other, regardless of overlapping IP plans.
-
-This repository also ships a cluster-wide **AdminNetworkPolicy** (`policy-tenant-isolation-anp`) as a **separate** control: it denies ingress and egress between namespaces labelled `customer-namespace: ""`. That is useful as defence in depth, for namespaces or interfaces that are not solely on an isolated UDN, or where you want an explicit API-level deny rule. You could omit or replace it in your own fork; it does **not** define UDN isolation.
-
-No per-tenant YAML is required for the sample ANP — it matches the label applied by the namespace template. Removing or changing the policy is done by editing the policy manifest / generator, not by per-tenant patches.
-
 ---
 
 ## 2. Create the Tenant CR
@@ -170,7 +162,7 @@ Once the Tenant CR is created, the policy evaluation cycle produces the followin
    - ResourceQuota, ApplicationAwareResourceQuota, LimitRange
    - UserDefinedNetwork (if `network.udnSubnet` is set)
    - MetalLB BGPPeer, IPAddressPool, BGPAdvertisement (if `network.metallb` is set)
-   - RoleBindings for admin and operator groups
+   - RoleBindings for Tenant-Admin and Tenant-Operator groups
 
 ---
 

@@ -1,0 +1,37 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: tenancy-ac-hub
+placementBindingDefaults:
+  name: binding-tenancy-hub-ac
+policyDefaults:
+  categories:
+    - AC Access Control
+  controls:
+    - Enforce Tenant Access
+  namespace: policies
+  policySets:
+    - tenancy-hub-access-control
+  remediationAction: enforce
+  severity: high
+  standards:
+    - Multi-Tenant Isolation
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  - name: tenancy-hub-console-and-vm-rbac
+    controls:
+      - Grant Hub Console and VM Management Access
+    consolidateManifests: false
+    orderManifests: true
+    manifests:
+      - path: acm-finegrained-rbac/hub-fleet-crbs.yaml
+      - path: acm-finegrained-rbac/hub-mcra-virt.yaml
+
+policySets:
+  - name: tenancy-hub-access-control
+    description: Hub RBAC for ACM console visibility and VM management rights propagated to managed clusters via MulticlusterRoleAssignments
+    placement:
+      placementName: policies-placement-hub-clusters

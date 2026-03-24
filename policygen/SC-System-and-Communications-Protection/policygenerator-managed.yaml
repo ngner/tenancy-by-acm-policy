@@ -1,0 +1,43 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: tenancy-sc-managed
+placementBindingDefaults:
+  name: binding-tenancy-managed-sc
+policyDefaults:
+  namespace: tenancies
+  policySets:
+    - tenancy-managed-tenant-definition
+  categories:
+    - SC System and Communications Protection
+  controls:
+    - Establish Tenant Isolation Boundary
+  standards:
+    - Multi-Tenant Isolation
+  severity: high
+  remediationAction: enforce
+  consolidateManifests: false
+  orderManifests: true
+
+policies:
+  - name: tenancy-managed-tenant-crd
+    controls:
+      - Deploy Tenant CRD to Managed Clusters
+    manifests:
+      - path: tenancy/tenant-crd.yaml
+      - path: tenancy/tenancies-namespace.yaml
+
+  - name: tenancy-managed-tenant-replication
+    controls:
+      - Replicate Tenant Definitions to Managed Clusters
+    manifests:
+      - path: tenancy/bridge-tenants.yaml
+    dependencies:
+      - name: tenancy-managed-tenant-crd
+
+policySets:
+  - name: tenancy-managed-tenant-definition
+    description: Managed cluster Tenant CRD deployment and Tenant CR replication from hub
+    placement:
+      placementName: tenancies-placement-managed-clusters

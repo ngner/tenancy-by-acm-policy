@@ -1,0 +1,34 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: tenancy-cm-hub
+placementBindingDefaults:
+  name: binding-tenancy-hub-cm
+policyDefaults:
+  categories:
+    - CM Configuration Management
+  controls:
+    - Provision Tenant Resources
+  namespace: policies
+  policySets:
+    - tenancy-hub-configuration
+  remediationAction: enforce
+  severity: high
+  standards:
+    - Multi-Tenant Isolation
+  complianceType: mustonlyhave
+  consolidateManifests: false
+
+policies:
+  - name: tenancy-hub-admin-network-policy
+    controls:
+      - Enforce Cross-Tenant Network Deny
+    manifests:
+      - path: network-policy/admin-network-policy.yaml
+
+policySets:
+  - name: tenancy-hub-configuration
+    description: Hub-side configuration policies including network controls
+    placement:
+      placementName: policies-placement-hub-clusters

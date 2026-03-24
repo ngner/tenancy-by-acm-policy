@@ -39,15 +39,15 @@ spec:
                 adminGroup:
                   type: string
                   description: >-
-                    IdP group granted admin in the tenant namespace,
-                    kubevirt.io:admin on VMs, and acm-vm-fleet:admin on the
-                    hub console.
+                    Tenant-Admin IdP group — granted admin in the tenant
+                    namespace, kubevirt.io:admin on VMs, and
+                    acm-vm-fleet:admin on the hub console.
                 operatorGroup:
                   type: string
                   description: >-
-                    IdP group granted edit in the tenant namespace,
-                    kubevirt.io:edit on VMs, and acm-vm-fleet:view on the
-                    hub console.
+                    Tenant-Operator IdP group — granted edit in the tenant
+                    namespace, kubevirt.io:edit on VMs, and
+                    acm-vm-fleet:view on the hub console.
 
                 # -----------------------------------------------------------
                 # ResourceQuota — namespace totals (all pods + PVCs)

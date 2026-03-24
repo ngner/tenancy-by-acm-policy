@@ -1,0 +1,35 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: tenancy-sc-hub
+placementBindingDefaults:
+  name: binding-tenancy-hub-sc
+policyDefaults:
+  namespace: tenancies
+  policySets:
+    - tenancy-hub-tenant-definition
+  categories:
+    - SC System and Communications Protection
+  controls:
+    - Establish Tenant Isolation Boundary
+  standards:
+    - Multi-Tenant Isolation
+  severity: high
+  remediationAction: enforce
+  consolidateManifests: false
+  orderManifests: false
+
+policies:
+  - name: tenancy-hub-tenant-crd
+    controls:
+      - Deploy Tenant CRD to Hub
+    manifests:
+      - path: tenancy/tenant-crd.yaml
+      - path: tenancy/tenancies-namespace.yaml
+
+policySets:
+  - name: tenancy-hub-tenant-definition
+    description: "Hub Tenant CRD and tenancies namespace -- foundation for all tenant policies"
+    placement:
+      placementName: tenancies-placement-hub-clusters

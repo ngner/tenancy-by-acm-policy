@@ -4,8 +4,8 @@ kind: Kustomization
 namespace: tenancies
 resources:
   #- managed-cluster-set-binding.yaml
-  - placement-not-local-cluster.yaml
-  - placement-tenancies-cluster-hub.yaml
+  - placement-managed.yaml
+  - placement-hub.yaml
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous

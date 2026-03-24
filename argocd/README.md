@@ -9,10 +9,11 @@ the default `openshift-gitops` ArgoCD instance.
 |---|---|---|
 | `openshift-gitops-policygen.yaml` | ArgoCD | Patches the default ArgoCD instance to install the PolicyGenerator kustomize plugin in the repo-server |
 | `appproject.yaml` | AppProject | Scoped project (`tenancy-policy`) — permits sync to `policies`, `tenancies`, and `openshift-gitops` namespaces |
-| `application-ac.yaml` | Application | Syncs `policygen/AC-Access-Control` — ACM fine-grained RBAC (MCRAs, CRBs) and managed-cluster RoleBindings |
-| `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — Tenant CR replication, namespaces, quotas, UDNs, MetalLB, optional AdminNetworkPolicy |
-| `application-placements.yaml` | Application | Syncs `placements/` — Placement rules referenced by generated policies |
-| `application-tenancy-base.yaml` | Application | Syncs `tenancy-base/` — Tenant CRD and other cross-cutting tenancy prereqs |
+| `application-tenancy-access-control.yaml` | Application | Syncs `policygen/AC-Access-Control` — ACM fine-grained RBAC (MCRAs, CRBs) and managed-cluster RoleBindings |
+| `application-tenancy-configuration-management.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — Tenant namespaces, quotas, UDNs, MetalLB BGP |
+| `application-tenancy-system-and-communications-protection.yaml` | Application | Syncs `policygen/SC-System-and-Communications-Protection` — Tenant CRD deployment and CR replication |
+| `application-tenancy-placements.yaml` | Application | Syncs `placements/` — Placement rules referenced by generated policies |
+| `application-tenancy-base.yaml` | Application | Syncs `tenancies/` — Tenant CRs (source of truth for tenant definitions) |
 | `apply.sh` | Script | Applies all ArgoCD resources, auto-setting `targetRevision` to the current git branch (see [TESTING-BRANCHES.md](TESTING-BRANCHES.md)) |
 
 ## PolicyGenerator plugin setup
@@ -50,9 +51,10 @@ oc rollout status deployment/openshift-gitops-repo-server -n openshift-gitops
 # Phase 2: project + applications (tenancy-base first — CRD must exist before policies reference it)
 oc apply -f argocd/appproject.yaml
 oc apply -f argocd/application-tenancy-base.yaml
-oc apply -f argocd/application-placements.yaml
-oc apply -f argocd/application-ac.yaml
-oc apply -f argocd/application-cm.yaml
+oc apply -f argocd/application-tenancy-placements.yaml
+oc apply -f argocd/application-tenancy-access-control.yaml
+oc apply -f argocd/application-tenancy-configuration-management.yaml
+oc apply -f argocd/application-tenancy-system-and-communications-protection.yaml
 ```
 
 ## Sync behaviour
@@ -62,8 +64,9 @@ oc apply -f argocd/application-cm.yaml
 | `tenancy-base` | Yes | Yes | Yes |
 | `tenancy-access-control` | Yes | No | No |
 | `tenancy-configuration-management` | Yes | Yes | Yes |
+| `tenancy-system-and-communications-protection` | Yes | Yes | Yes |
 | `tenancy-placements` | Yes | Yes | Yes |
 
-`tenancy-base` syncs the Tenant CRD and any other cross-cutting prereqs. Pruning and
-self-heal are enabled so the CRD stays enforced. Access Control has pruning and self-heal
-disabled to prevent accidental removal of RBAC bindings during policy refactoring.
+`tenancy-base` syncs the Tenant CRs. Pruning and self-heal are enabled so the tenant
+definitions stay enforced. Access Control has pruning and self-heal disabled to prevent
+accidental removal of RBAC bindings during policy refactoring.
