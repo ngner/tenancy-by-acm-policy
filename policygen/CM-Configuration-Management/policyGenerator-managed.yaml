@@ -2,174 +2,76 @@
 apiVersion: policy.open-cluster-management.io/v1
 kind: PolicyGenerator
 metadata:
-  name: policy-managed-tenancy-configuration
+  name: policy-managed-cluster-configuration
 placementBindingDefaults:
-  name: binding-managed-tenancy-configuration
+  name: binding-policies-placement-managed-clusters
 policyDefaults:
   categories:
     - CM Configuration Management
+  standards:
+    - NIST SP 800-53
   controls:
     - CM-6 Configuration Settings
   namespace: policies
   policySets:
-    - tenancy-managed-configuration
+    - policyset-managed-configuration
   remediationAction: enforce
   severity: high
-  standards:
-    - NIST SP 800-53
   complianceType: mustonlyhave
   consolidateManifests: false
 
 policies:
   # =========================================================================
-  # Cluster-wide Tenant Isolation
+  # Cluster-wide Tenant Isolation (not per-tenant)
   # =========================================================================
   - name: policy-tenant-isolation-anp
     manifests:
       - path: network-policy/admin-network-policy.yaml
 
   # =========================================================================
-  # Starwars tenant - Managed cluster Configuration
+  # All tenants — managed cluster config driven by Tenant CRs replicated
+  # from the hub by policy-tenant-bridge-to-managed-clusters(tenancies namespace).
+  # To add a tenant, create a Tenant CR in the tenancies namespace on the hub.
   # =========================================================================
-  - name: policy-tenant-starwars-config
+  - name: policy-tenant-namespaces
+    dependencies:
+      - name: policy-tenant-bridge-to-managed-clusters
+        namespace: tenancies
+        compliance: Compliant
     manifests:
-      - path: namespace/namespace.yaml
-        patches:
-          - metadata:
-              name: starwars
-      - path: quota/resource-quota.yaml
-        patches:
-          - metadata:
-              name: starwars-resource-quota
-              namespace: starwars
-            spec:
-              hard:
-                requests.cpu: "86"
-                requests.memory: "332Gi"
-                pods: "15"
-                requests.storage: "2000Gi"
-      - path: quota/application-aware-resource-quota.yaml
-        patches:
-          - metadata:
-              name: starwars-vm-resource-quota
-              namespace: starwars
-            spec:
-              hard:
-                requests.cpu/vmi: "80"
-                requests.memory/vmi: "320Gi"
-                limits.cpu/vmi: "80"
-                limits.memory/vmi: "320Gi"
-      - path: quota/limit-range.yaml
-        patches:
-          - metadata:
-              name: starwars-limit-range
-              namespace: starwars
-      - path: network/user-defined-network.yaml
-        patches:
-          - metadata:
-              name: starwars-network
-              namespace: starwars
-            spec:
-              layer2:
-                subnets:
-                  - "10.0.1.0/24"
-      - path: network/metallb-bgp-peer.yaml
-        patches:
-          - metadata:
-              name: starwars-bgp-peer
-            spec:
-              peerASN: 64501
-              peerAddress: 192.168.1.1
-              vrf: starwars-vrf
-      - path: network/metallb-ip-pool.yaml
-        patches:
-          - metadata:
-              name: starwars-ip-pool
-            spec:
-              addresses:
-                - 192.168.11.0/24
-      - path: network/metallb-bgp-advertisement.yaml
-        patches:
-          - metadata:
-              name: starwars-bgp-advertisement
-            spec:
-              ipAddressPools:
-                - starwars-ip-pool
-              peers:
-                - starwars-bgp-peer
+      - path: namespace/namespaces-from-crd.yaml
 
-  # =========================================================================
-  # Startrek tenant - Managed cluster Configuration
-  # =========================================================================
-  - name: policy-tenant-startrek-config
+  - name: policy-tenant-hyperconverged-aaq
     manifests:
-      - path: namespace/namespace.yaml
-        patches:
-          - metadata:
-              name: startrek
-      - path: quota/resource-quota.yaml
-        patches:
-          - metadata:
-              name: startrek-resource-quota
-              namespace: startrek
-            spec:
-              hard:
-                requests.cpu: "86"
-                requests.memory: "332Gi"
-                pods: "15"
-                requests.storage: "2000Gi"
-      - path: quota/application-aware-resource-quota.yaml
-        patches:
-          - metadata:
-              name: startrek-vm-resource-quota
-              namespace: startrek
-            spec:
-              hard:
-                requests.cpu/vmi: "80"
-                requests.memory/vmi: "320Gi"
-                limits.cpu/vmi: "80"
-                limits.memory/vmi: "320Gi"
-      - path: quota/limit-range.yaml
-        patches:
-          - metadata:
-              name: startrek-limit-range
-              namespace: startrek
-      - path: network/user-defined-network.yaml
-        patches:
-          - metadata:
-              name: startrek-network
-              namespace: startrek
-            spec:
-              layer2:
-                subnets:
-                  - "10.0.2.0/24"
-      - path: network/metallb-bgp-peer.yaml
-        patches:
-          - metadata:
-              name: startrek-bgp-peer
-            spec:
-              peerASN: 64502
-              peerAddress: 192.168.1.2
-              vrf: startrek-vrf
-      - path: network/metallb-ip-pool.yaml
-        patches:
-          - metadata:
-              name: startrek-ip-pool
-            spec:
-              addresses:
-                - 192.168.12.0/24
-      - path: network/metallb-bgp-advertisement.yaml
-        patches:
-          - metadata:
-              name: startrek-bgp-advertisement
-            spec:
-              ipAddressPools:
-                - startrek-ip-pool
-              peers:
-                - startrek-bgp-peer
+      - path: quota/hyperconverged-aaq-enabled.yaml
+    complianceType: musthave
+    
+  - name: policy-tenant-quotas
+    dependencies:
+      - name: policy-tenant-namespaces
+        compliance: Compliant
+    manifests:
+      - path: quota/quotas-from-crd.yaml
+
+
+  - name: policy-tenant-network
+    dependencies:
+      - name: policy-tenant-namespaces
+        compliance: Compliant
+    manifests:
+      - path: network/udn-from-crd.yaml
+
+  - name: policy-tenant-metallb
+    dependencies:
+      - name: policy-tenant-namespaces
+        compliance: Compliant
+    manifests:
+      - path: metallb/bgp-peer-from-crd.yaml
+      - path: metallb/ip-address-pool-from-crd.yaml
+      - path: metallb/bgp-advertisement-from-crd.yaml
 
 policySets:
-  - name: tenancy-managed-configuration
+  - name: policyset-managed-configuration
     description: Managed cluster tenant namespace provisioning and configuration
     placement:
-      placementName: placement-managed-clusters
+      placementName: policies-placement-managed-clusters

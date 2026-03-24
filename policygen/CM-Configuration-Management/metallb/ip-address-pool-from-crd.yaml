@@ -1,0 +1,21 @@
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $name := $tenant.metadata.name }}
+  {{- $net := $tenant.spec.network | default dict }}
+  {{- $mlb := $net.metallb | default dict }}
+  {{- if $mlb.peerASN }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: metallb.io/v1beta1
+      kind: IPAddressPool
+      metadata:
+        name: {{ $name }}-ip-pool
+        namespace: metallb-system
+      spec:
+        addresses:
+          {{- range $mlb.addresses }}
+          - "{{ . }}"
+          {{- end }}
+        autoAssign: true
+  {{- end }}
+  {{- end }}

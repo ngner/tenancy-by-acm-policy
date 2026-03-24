@@ -8,11 +8,12 @@ the default `openshift-gitops` ArgoCD instance.
 | File | Kind | Purpose |
 |---|---|---|
 | `openshift-gitops-policygen.yaml` | ArgoCD | Patches the default ArgoCD instance to install the PolicyGenerator kustomize plugin in the repo-server |
-| `appproject.yaml` | AppProject | Scoped project (`tenancy-policy`) restricting sync to ACM policy resource types in the `policies` namespace |
-| `application-ac.yaml` | Application | Syncs `policygen/AC-Access-Control` -- tenant RBAC and ACM fine-grained access |
-| `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — namespaces, quotas, UDNs, MetalLB, optional AdminNetworkPolicy |
-| `application-placements.yaml` | Application | Syncs `placements/` -- the Placement rules referenced by generated policies |
-| `application-tenancy-base.yaml` | Application | Syncs `tenancy-base/` -- Tenant CRD and other cross-cutting tenancy prereqs |
+| `appproject.yaml` | AppProject | Scoped project (`tenancy-policy`) — permits sync to `policies`, `tenancies`, and `openshift-gitops` namespaces |
+| `application-ac.yaml` | Application | Syncs `policygen/AC-Access-Control` — ACM fine-grained RBAC (MCRAs, CRBs) and managed-cluster RoleBindings |
+| `application-cm.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — Tenant CR replication, namespaces, quotas, UDNs, MetalLB, optional AdminNetworkPolicy |
+| `application-placements.yaml` | Application | Syncs `placements/` — Placement rules referenced by generated policies |
+| `application-tenancy-base.yaml` | Application | Syncs `tenancy-base/` — Tenant CRD and other cross-cutting tenancy prereqs |
+| `apply.sh` | Script | Applies all ArgoCD resources, auto-setting `targetRevision` to the current git branch (see [TESTING-BRANCHES.md](TESTING-BRANCHES.md)) |
 
 ## PolicyGenerator plugin setup
 
@@ -31,7 +32,15 @@ The init container image tag (`v2.16`) must match the installed ACM version.
 
 ## Apply order
 
-The policygen plugin must be active before the Applications can sync, so apply in two phases:
+The policygen plugin must be active before the Applications can sync, so apply in
+two phases. Use `apply.sh` for the recommended approach (handles both phases and
+sets `targetRevision` to the current branch — see [TESTING-BRANCHES.md](TESTING-BRANCHES.md)):
+
+```bash
+argocd/apply.sh
+```
+
+Or manually:
 
 ```bash
 # Phase 1: plugin + wait

@@ -12,7 +12,7 @@ policyDefaults:
     - AC-3 Access Enforcement
   namespace: policies
   policySets:
-    - tenancy-hub-access-control
+    - policyset-hub-access-control
   remediationAction: enforce
   severity: high
   standards:
@@ -22,22 +22,22 @@ policyDefaults:
 
 policies:
   # =========================================================================
-  # All tenants — hub RBAC driven by the tenant-registry ConfigMap.
-  # To add a tenant, add a key to tenant-registry/tenant-configmap.yaml.
-  # The object-templates-raw manifests iterate the ConfigMap at evaluation
-  # time and generate ClusterRoleBindings + MulticlusterRoleAssignments
-  # for every tenant automatically.
+  # All tenants — hub RBAC driven by Tenant CRs in the tenancies namespace.
+  # To add a tenant, create a Tenant CR. The object-templates-raw manifests
+  # iterate all Tenant CRs at evaluation time and generate:
+  #   - bridge ConfigMap (consumed by managed-cluster policies)
+  #   - ClusterRoleBindings for ACM console access
+  #   - MulticlusterRoleAssignments for managed-cluster VM RBAC
   # =========================================================================
   - name: policy-tenant-hub-rbac
     consolidateManifests: false
     orderManifests: true
     manifests:
-      - path: tenant-registry/tenant-configmap.yaml
       - path: acm-finegrained-rbac/hub-fleet-crbs.yaml
       - path: acm-finegrained-rbac/hub-mcra-virt.yaml
 
 policySets:
-  - name: tenancy-hub-access-control
+  - name: policyset-hub-access-control
     description: Hub-side tenant RBAC and MulticlusterRoleAssignments for managed cluster VM access
     placement:
-      placementName: placement-hub-clusters
+      placementName: policies-placement-hub-clusters

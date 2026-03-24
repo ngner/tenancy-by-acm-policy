@@ -1,0 +1,31 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-hub-cluster-tenancy
+placementBindingDefaults:
+  name: binding-tenancies-placement-hub-clusters
+policyDefaults:
+  namespace: tenancies
+  policySets:
+    - policyset-hub-tenancy
+  categories:
+    - SC System and Communications Protection
+  controls:
+    - Tenant Isolation
+  standards:
+    - NIST SP 800-53
+  severity: high
+  remediationAction: enforce
+  consolidateManifests: false
+  orderManifests: false
+policies:
+  - name: policy-hub-cluster-tenant-crd-create
+    manifests:
+    - path: tenancy/tenant-crd.yaml
+    - path: tenancy/tenancies-namespace.yaml
+
+policySets:
+  - name: policyset-hub-tenancy
+    description: Hub cluster tenancy objects for tenant isolation
+    placement:
+      placementName: tenancies-placement-hub-clusters

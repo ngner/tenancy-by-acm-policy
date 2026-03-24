@@ -8,21 +8,22 @@ Application.
 
 ```
 policygen/
-├── AC-Access-Control/             Access enforcement (AC-3)
-│   ├── kustomization.yaml         Registers policyGenerator-*.yaml as kustomize generators
-│   ├── policyGenerator-hub.yaml   Hub-side RBAC + MulticlusterRoleAssignments
-│   ├── policyGenerator-managed.yaml  Managed cluster RoleBindings
-│   ├── tenant-registry/           ConfigMap listing all tenants (consumed by object-templates-raw)
-│   ├── acm-finegrained-rbac/      object-templates-raw manifests for ClusterRoleBindings and MCRAs
-│   └── rbac/                      Template for namespace-scoped RoleBindings
+├── AC-Access-Control/               Access enforcement (AC-3)
+│   ├── kustomization.yaml           Registers policyGenerator-*.yaml as kustomize generators
+│   ├── policyGenerator-hub.yaml     Hub-side fine-grained RBAC: ClusterRoleBindings + MulticlusterRoleAssignments
+│   ├── policyGenerator-managed.yaml Managed cluster RoleBindings (depends on policy-tenant-bridge-to-managed-clusters)
+│   ├── acm-finegrained-rbac/        object-templates-raw: ClusterRoleBindings, MCRAs (+ legacy bridge-generator)
+│   └── rbac/                        object-templates-raw: managed cluster RoleBindings from Tenant CRs
 │
-└── CM-Configuration-Management/   Configuration settings (CM-6)
-    ├── kustomization.yaml         Registers policyGenerator-managed.yaml as a generator
-    ├── policyGenerator-managed.yaml  Namespaces, quotas, network config for managed clusters
-    ├── namespace/                  Namespace template
-    ├── quota/                      ResourceQuota, ApplicationAwareResourceQuota, LimitRange
-    ├── network/                    UserDefinedNetwork (primary isolation) and MetalLB VRF/BGP
-    └── network-policy/             Optional AdminNetworkPolicy (additional control)
+└── CM-Configuration-Management/     Configuration settings (CM-6)
+    ├── kustomization.yaml           Registers policyGenerator-tenancies.yaml + policyGenerator-managed.yaml
+    ├── policyGenerator-tenancies.yaml  Deploys Tenant CRD + replicates Tenant CRs to managed clusters
+    ├── policyGenerator-managed.yaml    Namespaces, quotas, network for managed clusters
+    ├── bridge/                      Tenant CRD deploy + hub-range Tenant CR replication
+    ├── namespace/                   Namespace creation from Tenant CRs
+    ├── quota/                       ResourceQuota, ApplicationAwareResourceQuota, LimitRange from Tenant CRs
+    ├── network/                     UserDefinedNetwork and MetalLB VRF/BGP from Tenant CRs
+    └── network-policy/              Optional AdminNetworkPolicy (additional control)
 ```
 
 ## How PolicyGenerator works
@@ -32,17 +33,16 @@ When kustomize runs with `--enable-alpha-plugins`, it invokes the PolicyGenerato
 binary (installed in the ArgoCD repo-server) which reads the generator YAML and
 outputs ACM `Policy`, `PlacementBinding`, and `PolicySet` resources.
 
-The generator YAML files use two approaches depending on the target:
+All policies use `object-templates-raw` manifests that iterate Tenant CRs at
+evaluation time using `lookup` and `range`. A single manifest dynamically produces
+resources for every tenant — no per-tenant policy blocks or patches are needed.
 
-- **Hub policies (AC-Access-Control)** — `object-templates-raw` manifests that
-  iterate the `tenant-registry` ConfigMap (or `Tenant` CRs from
-  `tenancy-base/`) at evaluation time using `lookup` and `range`. A single
-  manifest dynamically produces resources for every tenant.
-- **Managed-cluster policies** — a template+patch model where base templates
-  (in subdirectories) define the resource structure with placeholder values and
-  patches in the generator YAML override specific fields per tenant.
-
-Both approaches avoid duplicating entire manifests for each tenant.
+A policy in the `tenancies` namespace uses `{{hub range hub}}` hub templates to
+replicate every `Tenant` CR from the hub to managed clusters. Managed-cluster
+policies then iterate those local Tenant CRs with standard `{{ range }}` to create
+namespaces, quotas, network resources, and RoleBindings. Hub-side ACM fine-grained
+RBAC policies (`MulticlusterRoleAssignment`, `ClusterRoleBinding`) are generated
+directly from the Tenant CRs on the hub.
 
 ## Adding a new control family
 

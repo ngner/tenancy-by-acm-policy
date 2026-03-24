@@ -5,7 +5,7 @@
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:
-  name: placement-managed-clusters
+  name: policies-placement-managed-clusters
   namespace: policies
 spec:
   clusterSets:

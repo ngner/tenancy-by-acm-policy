@@ -12,7 +12,7 @@ policyDefaults:
     - AC-3 Access Enforcement
   namespace: policies
   policySets:
-    - tenancy-managed-access-control
+    - policyset-managed-access-control
   remediationAction: enforce
   severity: high
   standards:
@@ -22,75 +22,21 @@ policyDefaults:
 
 policies:
   # =========================================================================
-  # Starwars tenant - Managed cluster RoleBindings
+  # All tenants — managed cluster RoleBindings driven by Tenant CRs
+  # replicated from the hub by policy-tenant-bridge-to-managed-clusters(tenancies namespace).
+  # To add a tenant, create a Tenant CR in the tenancies namespace on the hub.
   # =========================================================================
-  - name: policy-tenant-starwars-managed-rbac
+  - name: policy-tenant-managed-rbac
+    dependencies:
+      - name: policy-tenant-bridge-to-managed-clusters
+        namespace: tenancies
+        compliance: Compliant
+    consolidateManifests: false
     manifests:
-      # RoleBinding: admin in starwars namespace -> starwars-admins
-      - path: rbac/rolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-starwars-admin
-              namespace: starwars
-            roleRef:
-              apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
-              name: admin
-            subjects:
-              - kind: Group
-                apiGroup: rbac.authorization.k8s.io
-                name: starwars-admins
-      # RoleBinding: edit in starwars namespace -> starwars-operators
-      - path: rbac/rolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-starwars-operators
-              namespace: starwars
-            roleRef:
-              apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
-              name: edit
-            subjects:
-              - kind: Group
-                apiGroup: rbac.authorization.k8s.io
-                name: starwars-operators
-
-  # =========================================================================
-  # Startrek tenant - Managed cluster RoleBindings
-  # =========================================================================
-  - name: policy-tenant-startrek-managed-rbac
-    manifests:
-      # RoleBinding: admin in startrek namespace -> startrek-admins
-      - path: rbac/rolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-startrek-admin
-              namespace: startrek
-            roleRef:
-              apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
-              name: admin
-            subjects:
-              - kind: Group
-                apiGroup: rbac.authorization.k8s.io
-                name: startrek-admins
-      # RoleBinding: edit in startrek namespace -> startrek-operators
-      - path: rbac/rolebinding.yaml
-        patches:
-          - metadata:
-              name: customer-startrek-operators
-              namespace: startrek
-            roleRef:
-              apiGroup: rbac.authorization.k8s.io
-              kind: ClusterRole
-              name: edit
-            subjects:
-              - kind: Group
-                apiGroup: rbac.authorization.k8s.io
-                name: startrek-operators
+      - path: rbac/managed-rolebindings.yaml
 
 policySets:
-  - name: tenancy-managed-access-control
+  - name: policyset-managed-access-control
     description: Managed cluster tenant RoleBindings for namespace access
     placement:
-      placementName: placement-managed-clusters
+      placementName: policies-placement-managed-clusters

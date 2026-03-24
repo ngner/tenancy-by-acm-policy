@@ -37,5 +37,7 @@ spec:
       kind: PolicyGenerator
     - group: dusty-seahorse.io
       kind: Tenant
+    - group: cluster.open-cluster-management.io
+      kind: ManagedClusterSetBinding
   sourceRepos:
     - https://github.com/ngner/tenancy-by-acm-policy.git

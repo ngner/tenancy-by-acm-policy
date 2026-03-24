@@ -3,14 +3,32 @@
 ACM Placement rules that determine which clusters receive the generated policies.
 The active placements are controlled by `kustomization.yaml`.
 
-## Active placements
+## Policies placements (`placements/policies/`, namespace: `policies`)
 
 | File | Placement name | Targets |
 |---|---|---|
-| `cluster-hub.yaml` | `placement-hub-clusters` | The local ACM hub cluster (`name: local-cluster`) |
-| `clusters-managed.yaml` | `placement-managed-clusters` | Every managed cluster except the hub — no cluster set filter |
+| `cluster-hub.yaml` | `policies-placement-hub-clusters` | The local ACM hub cluster (`name: local-cluster`) |
+| `clusters-not-local-cluster.yaml` | `policies-placement-managed-clusters` | Every managed cluster except the hub — no cluster set filter |
 
 The kustomization sets `namespace: policies` on all resources in this directory.
+
+## Tenancies placements (`placements/tenancies/`, namespace: `tenancies`)
+
+The `tenancies/` subdirectory contains placements for policies deployed in the
+`tenancies` namespace (e.g. the Tenant CR replication policy). It has its own
+`ManagedClusterSetBinding` resources to bind `ManagedClusterSet`s to the
+`tenancies` namespace, which is required for Placements there to select managed
+clusters.
+
+| File | Kind | Name | Purpose |
+|---|---|---|---|
+| `managed-cluster-set-binding.yaml` | ManagedClusterSetBinding | `default`, `managed` | Binds the `default` and `managed` ManagedClusterSets to the `tenancies` namespace |
+| `placement-not-local-cluster.yaml` | Placement | `tenancies-placement-managed-clusters` | Selects all non-hub managed clusters (excludes `local-cluster`) |
+| `placement-tenancies-cluster-hub.yaml` | Placement | `tenancies-placement-hub-clusters` | Selects the local ACM hub cluster (`name: local-cluster`) |
+
+This separation supports multiple `tenancies-*` namespaces with different
+cluster-set bindings, allowing distinct groups of tenants to target different
+sets of managed clusters.
 
 ## How placements are used
 
@@ -38,7 +56,7 @@ resources:
   - cluster-hub.yaml
 
   # Managed-cluster placement — uncomment ONE of the following:
-  - clusters-managed.yaml                # All non-hub clusters (no clusterSet filter)
+  - clusters-not-local-cluster.yaml               # All non-hub clusters (no clusterSet filter)
   # - clusters-managed-by-clusterset.yaml  # Specific ManagedClusterSet (edit clusterSets value)
   # - clusters-managed-by-label.yaml       # Opt-in by label (tenant-eligible=true)
 ```
@@ -47,7 +65,7 @@ resources:
 
 | File | Strategy | Details |
 |---|---|---|
-| `clusters-managed.yaml` | Exclude hub only | No `clusterSets` filter — matches every ManagedCluster except `local-cluster`. Default. |
+| `clusters-not-local-cluster.yaml` | Exclude hub only | No `clusterSets` filter — matches every ManagedCluster except `local-cluster`. Default. |
 | `clusters-managed-by-clusterset.yaml` | ManagedClusterSet | Targets all clusters in the named set. Edit `clusterSets: [default]` to your set name. |
 | `clusters-managed-by-label.yaml` | Label selector | Opt-in model. Only clusters labelled `tenant-eligible: "true"` are selected. Apply with `oc label managedcluster <name> tenant-eligible=true`. |
 
@@ -58,5 +76,5 @@ reference the placement name in the relevant `policyGenerator-*.yaml` under
 `policySets[].placement.placementName`.
 
 This pattern supports multiple placements for different policy groups — for example
-a `placement-virt-clusters` targeting only clusters with OpenShift Virtualization,
+a `policies-placement-virt-clusters` targeting only clusters with OpenShift Virtualization,
 referenced by a separate PolicySet.

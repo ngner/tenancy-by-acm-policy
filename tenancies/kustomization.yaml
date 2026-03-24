@@ -3,7 +3,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: tenancies
 resources:
-  - tenant-crd.yaml
+  - tenant-startrek.yaml
+  - tenant-starwars.yaml
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous

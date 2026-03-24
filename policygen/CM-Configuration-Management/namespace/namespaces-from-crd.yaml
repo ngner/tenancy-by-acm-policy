@@ -1,0 +1,12 @@
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      kind: Namespace
+      apiVersion: v1
+      metadata:
+        labels:
+          customer-namespace: ""
+          k8s.ovn.org/primary-user-defined-network: ""
+        name: {{ $tenant.metadata.name }}
+  {{- end }}

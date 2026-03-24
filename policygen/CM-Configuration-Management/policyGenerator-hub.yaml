@@ -1,0 +1,34 @@
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: policy-hub-configuration-management
+placementBindingDefaults:
+  name: binding-policies-placement-hub-clusters
+policyDefaults:
+  categories:
+    - CM Configuration Management
+  controls:
+    - CM-6 Configuration Settings
+  namespace: policies
+  policySets:
+    - policyset-hub-configuration
+  remediationAction: enforce
+  severity: high
+  standards:
+    - NIST SP 800-53
+  complianceType: mustonlyhave
+  consolidateManifests: false
+policies:
+  # =========================================================================
+  # Cluster-wide Tenant Isolation Simply as a placeholder policy
+  # =========================================================================
+  - name: policy-hub-cluster-isolation-anp
+    manifests:
+      - path: network-policy/admin-network-policy.yaml
+
+policySets:
+  - name: policyset-hub-configuration
+    description: Hub-side configuration management
+    placement:
+      placementName: policies-placement-hub-clusters

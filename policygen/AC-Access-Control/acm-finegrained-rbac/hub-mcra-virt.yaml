@@ -1,65 +1,63 @@
 object-templates-raw: |
-  {{- $cm := (lookup "v1" "ConfigMap" "policies" "tenant-registry") }}
-  {{- range $tenantName, $tenantYaml := $cm.data }}
-  {{- $tenant := $tenantYaml | fromYaml }}
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: customer-{{ $tenantName }}-virt-admin
+        name: customer-{{ $tenant.metadata.name }}-virt-admin
         namespace: policies
       spec:
         subject:
           kind: Group
-          name: {{ $tenant.adminGroup }}
+          name: {{ $tenant.spec.adminGroup }}
         roleAssignments:
-        - name: customer-{{ $tenantName }}-virt-admin-kubevirt
+        - name: customer-{{ $tenant.metadata.name }}-virt-admin-kubevirt
           clusterRole: kubevirt.io:admin
           targetNamespaces:
-          - {{ $tenantName }}
+          - {{ $tenant.metadata.name }}
           clusterSelection:
             type: placements
             placements:
-            - name: placement-managed-clusters
+            - name: policies-placement-managed-clusters
               namespace: policies
-        - name: customer-{{ $tenantName }}-virt-admin-extended
+        - name: customer-{{ $tenant.metadata.name }}-virt-admin-extended
           clusterRole: acm-vm-extended:admin
           targetNamespaces:
-          - {{ $tenantName }}
+          - {{ $tenant.metadata.name }}
           clusterSelection:
             type: placements
             placements:
-            - name: placement-managed-clusters
+            - name: policies-placement-managed-clusters
               namespace: policies
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: customer-{{ $tenantName }}-virt-operator
+        name: customer-{{ $tenant.metadata.name }}-virt-operator
         namespace: policies
       spec:
         subject:
           kind: Group
-          name: {{ $tenant.operatorGroup }}
+          name: {{ $tenant.spec.operatorGroup }}
         roleAssignments:
-        - name: customer-{{ $tenantName }}-virt-operator-kubevirt
+        - name: customer-{{ $tenant.metadata.name }}-virt-operator-kubevirt
           clusterRole: kubevirt.io:edit
           targetNamespaces:
-          - {{ $tenantName }}
+          - {{ $tenant.metadata.name }}
           clusterSelection:
             type: placements
             placements:
-            - name: placement-managed-clusters
+            - name: policies-placement-managed-clusters
               namespace: policies
-        - name: customer-{{ $tenantName }}-virt-operator-extended
+        - name: customer-{{ $tenant.metadata.name }}-virt-operator-extended
           clusterRole: acm-vm-extended:view
           targetNamespaces:
-          - {{ $tenantName }}
+          - {{ $tenant.metadata.name }}
           clusterSelection:
             type: placements
             placements:
-            - name: placement-managed-clusters
+            - name: policies-placement-managed-clusters
               namespace: policies
   {{- end }}

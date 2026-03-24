@@ -1,0 +1,22 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tenancy-system-and-communications-protection
+  namespace: openshift-gitops
+spec:
+  destination:
+    namespace: policies
+    server: https://kubernetes.default.svc
+  project: tenancy-policy
+  source:
+    path: policygen/SC-System-and-Communications-Protection
+    repoURL: https://github.com/ngner/tenancy-by-acm-policy.git
+    targetRevision: master
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    automated:
+      prune: true
+      selfHeal: true

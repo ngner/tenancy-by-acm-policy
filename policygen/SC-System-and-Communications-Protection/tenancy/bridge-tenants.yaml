@@ -1,0 +1,11 @@
+object-templates-raw: |
+  {{hub- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items hub}}
+  - complianceType: musthave
+    objectDefinition:
+      apiVersion: dusty-seahorse.io/v1alpha1
+      kind: Tenant
+      metadata:
+        name: '{{hub $tenant.metadata.name hub}}'
+        namespace: tenancies
+      spec: '{{hub $tenant.spec | toRawJson | toLiteral hub}}'
+  {{hub- end hub}}

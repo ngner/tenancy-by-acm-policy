@@ -1,0 +1,21 @@
+---
+# Bind the "default" ManagedClusterSet to the tenancies namespace so that
+# Placements here can schedule policies onto managed clusters.
+# The binding name MUST match spec.clusterSet.
+# Requires managedclustersets/bind permission on the target ManagedClusterSet.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: default
+  namespace: tenancies
+spec:
+  clusterSet: default
+---
+# Bind the "managed" ManagedClusterSet to the tenancies namespace so that
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: managed
+  namespace: tenancies
+spec:
+  clusterSet: managed

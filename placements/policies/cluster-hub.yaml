@@ -2,14 +2,9 @@
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:
-  name: placement-hub-clusters
+  name: policies-placement-hub-clusters
   namespace: policies
 spec:
-  tolerations:
-    - key: cluster.open-cluster-management.io/unavailable
-      operator: Exists
-    - key: cluster.open-cluster-management.io/unreachable
-      operator: Exists
   predicates:
     - requiredClusterSelector:
         labelSelector:
