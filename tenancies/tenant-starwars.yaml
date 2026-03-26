@@ -7,8 +7,9 @@ metadata:
 spec:
   displayName: "Star Wars"
   owner: platform-team@example.com
-  adminGroup: starwars-admins
-  operatorGroup: starwars-operators
+  adminGroup: starwars-tenant-admin
+  userGroup: starwars-tenant-user
+  viewerGroup: starwars-tenant-viewer
 
   resourceQuota:
     cpu: "86"

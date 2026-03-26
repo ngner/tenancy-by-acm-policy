@@ -9,7 +9,7 @@ object-templates-raw: |
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
-        name: acm-vm-fleet:admin
+        name: acm-vm-fleet:view
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
@@ -19,7 +19,7 @@ object-templates-raw: |
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-operator-acm-fleet
+        name: {{ $tenant.metadata.name }}-tenant-user-acm-fleet
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -27,5 +27,21 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.spec.operatorGroup }}
+          name: {{ $tenant.spec.userGroup }}
+  {{- if $tenant.spec.viewerGroup }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: {{ $tenant.metadata.name }}-tenant-viewer-acm-fleet
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: acm-vm-fleet:view
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: {{ $tenant.spec.viewerGroup }}
+  {{- end }}
   {{- end }}

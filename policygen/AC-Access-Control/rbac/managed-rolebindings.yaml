@@ -21,7 +21,7 @@ object-templates-raw: |
       apiVersion: rbac.authorization.k8s.io/v1
       kind: RoleBinding
       metadata:
-        name: {{ $name }}-tenant-operator
+        name: {{ $name }}-tenant-user
         namespace: {{ $name }}
       roleRef:
         apiGroup: rbac.authorization.k8s.io
@@ -30,5 +30,22 @@ object-templates-raw: |
       subjects:
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
-          name: {{ $tenant.spec.operatorGroup }}
+          name: {{ $tenant.spec.userGroup }}
+  {{- if $tenant.spec.viewerGroup }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: {{ $name }}-tenant-viewer
+        namespace: {{ $name }}
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: view
+      subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: {{ $tenant.spec.viewerGroup }}
+  {{- end }}
   {{- end }}

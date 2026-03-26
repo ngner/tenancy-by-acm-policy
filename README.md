@@ -3,7 +3,7 @@
 Use ACM PolicyGenerator with ArgoCD openshift-gitops to deliver multi-tenant isolation across managed OpenShift clusters. Tenancy boundaries — namespaces, RBAC, quotas, network isolation, MetalLB VRF/BGP — are all expressed as PolicyGenerator manifests and delivered through the default ArgoCD instance on the hub. No ACM Channels, Subscriptions or Applications are used.
 
 Policies are organised by NIST SP 800-53 control family:
-- **AC-Access-Control** — ACM fine-grained RBAC (`MulticlusterRoleAssignment`) for KubeVirt/VM access on managed clusters, hub `ClusterRoleBinding`s for ACM fleet console visibility, and managed-cluster `RoleBinding`s for Tenant-Admin/Tenant-Operator namespace access.
+- **AC-Access-Control** — ACM fine-grained RBAC (`MulticlusterRoleAssignment`) for KubeVirt/VM access on managed clusters, hub `ClusterRoleBinding`s for ACM fleet console visibility, and managed-cluster `RoleBinding`s for Tenant-Admin/Tenant-User/Tenant-Viewer namespace access.
 - **CM-Configuration-Management** — Creates tenant namespaces, ResourceQuotas, ApplicationAwareResourceQuotas (VM limits), LimitRanges, UserDefinedNetworks (OVN-isolated primary networks), and MetalLB BGP peering on managed clusters.
 - **SC-System-and-Communications-Protection** — Deploys the Tenant CRD and replicates Tenant CRs from the hub to managed clusters, establishing the foundation for all other tenant policies.
 

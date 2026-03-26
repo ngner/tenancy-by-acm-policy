@@ -35,14 +35,14 @@ object-templates-raw: |
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-operator-virt
+        name: {{ $tenant.metadata.name }}-tenant-user-virt
         namespace: policies
       spec:
         subject:
           kind: Group
-          name: {{ $tenant.spec.operatorGroup }}
+          name: {{ $tenant.spec.userGroup }}
         roleAssignments:
-        - name: {{ $tenant.metadata.name }}-tenant-operator-virt-kubevirt
+        - name: {{ $tenant.metadata.name }}-tenant-user-virt-kubevirt
           clusterRole: kubevirt.io:edit
           targetNamespaces:
           - {{ $tenant.metadata.name }}
@@ -51,7 +51,7 @@ object-templates-raw: |
             placements:
             - name: policies-placement-managed-clusters
               namespace: policies
-        - name: {{ $tenant.metadata.name }}-tenant-operator-virt-extended
+        - name: {{ $tenant.metadata.name }}-tenant-user-virt-extended
           clusterRole: acm-vm-extended:view
           targetNamespaces:
           - {{ $tenant.metadata.name }}
@@ -60,4 +60,36 @@ object-templates-raw: |
             placements:
             - name: policies-placement-managed-clusters
               namespace: policies
+  {{- if $tenant.spec.viewerGroup }}
+  - complianceType: mustonlyhave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenant.metadata.name }}-tenant-viewer-virt
+        namespace: policies
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.viewerGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-viewer-virt-kubevirt
+          clusterRole: kubevirt.io:view
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: policies-placement-managed-clusters
+              namespace: policies
+        - name: {{ $tenant.metadata.name }}-tenant-viewer-virt-extended
+          clusterRole: acm-vm-extended:view
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: policies-placement-managed-clusters
+              namespace: policies
+  {{- end }}
   {{- end }}

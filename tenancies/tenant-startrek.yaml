@@ -7,8 +7,9 @@ metadata:
 spec:
   displayName: "Star Trek"
   owner: platform-team@example.com
-  adminGroup: startrek-admins
-  operatorGroup: startrek-operators
+  adminGroup: startrek-tenant-admin
+  userGroup: startrek-tenant-user
+  viewerGroup: startrek-tenant-viewer
 
   resourceQuota:
     cpu: "86"
