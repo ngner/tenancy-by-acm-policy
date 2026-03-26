@@ -25,7 +25,7 @@ spec:
               type: object
               required:
                 - adminGroup
-                - operatorGroup
+                - userGroup
               properties:
                 # -----------------------------------------------------------
                 # Identity & RBAC
@@ -41,13 +41,22 @@ spec:
                   description: >-
                     Tenant-Admin IdP group — granted admin in the tenant
                     namespace, kubevirt.io:admin on VMs, and
-                    acm-vm-fleet:admin on the hub console.
-                operatorGroup:
+                    acm-vm-fleet:view on the hub console.
+                    Default naming convention: {tenantname}-tenant-admin.
+                userGroup:
                   type: string
                   description: >-
-                    Tenant-Operator IdP group — granted edit in the tenant
+                    Tenant-User IdP group — granted edit in the tenant
                     namespace, kubevirt.io:edit on VMs, and
                     acm-vm-fleet:view on the hub console.
+                    Default naming convention: {tenantname}-tenant-user.
+                viewerGroup:
+                  type: string
+                  description: >-
+                    Tenant-Viewer IdP group — granted view in the tenant
+                    namespace, kubevirt.io:view on VMs, and
+                    acm-vm-fleet:view on the hub console.
+                    Default naming convention: {tenantname}-tenant-viewer.
 
                 # -----------------------------------------------------------
                 # ResourceQuota — namespace totals (all pods + PVCs)
@@ -160,9 +169,12 @@ spec:
         - name: Admin Group
           type: string
           jsonPath: .spec.adminGroup
-        - name: Operator Group
+        - name: User Group
           type: string
-          jsonPath: .spec.operatorGroup
+          jsonPath: .spec.userGroup
+        - name: Viewer Group
+          type: string
+          jsonPath: .spec.viewerGroup
         - name: Age
           type: date
           jsonPath: .metadata.creationTimestamp

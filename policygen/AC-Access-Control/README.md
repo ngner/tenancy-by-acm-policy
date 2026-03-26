@@ -11,19 +11,21 @@ on both the ACM hub and managed clusters.
 Targets the hub cluster (`policies-placement-hub-clusters`) and creates ACM fine-grained
 RBAC resources directly from Tenant CRs:
 
-- **ClusterRoleBindings** for ACM console access via `acm-vm-fleet:{admin,view}` roles,
-  giving tenant groups visibility into their fleet through the ACM UI.
-- **MulticlusterRoleAssignments** that grant `kubevirt.io:{admin,edit}` and
-  `acm-vm-extended:{admin,view}` roles scoped to the tenant namespace on managed clusters.
-  These are ACM fine-grained RBAC resources evaluated on the hub and propagated to
-  matching clusters.
+- **ClusterRoleBindings** granting `acm-vm-fleet:view` to all three tenant groups
+  (admin, user, viewer) — the documented minimum for fleet virtualization console
+  access (RHACM Scenario 2). `acm-vm-fleet:admin` is not used as it is only
+  required for cross-cluster live migration.
+- **MulticlusterRoleAssignments** that grant `kubevirt.io:{admin,edit,view}` and
+  `acm-vm-extended:{admin,view}` roles scoped to the tenant namespace on managed
+  clusters. These are ACM fine-grained RBAC resources evaluated on the hub and
+  propagated to matching clusters.
 
 ### policygenerator-managed.yaml
 
 Targets managed clusters (`policies-placement-managed-clusters`) and creates:
 
-- **RoleBindings** in each tenant namespace granting `admin` to the tenant's Tenant-Admin
-  group and `edit` to the Tenant-Operator group.
+- **RoleBindings** in each tenant namespace granting `admin` to the Tenant-Admin
+  group, `edit` to the Tenant-User group, and `view` to the Tenant-Viewer group.
 
 This policy depends on `tenancy-managed-tenant-replication` (tenancies namespace) being Compliant,
 which ensures the Tenant CRD and replicated Tenant CRs are present before RoleBindings
@@ -49,8 +51,9 @@ metadata:
   name: newtenant
   namespace: tenancies
 spec:
-  adminGroup: newtenant-admins
-  operatorGroup: newtenant-operators
+  adminGroup: newtenant-tenant-admin
+  userGroup: newtenant-tenant-user
+  viewerGroup: newtenant-tenant-viewer
 ```
 
 No further edits are required. The hub policy re-evaluates, the Tenant CR is

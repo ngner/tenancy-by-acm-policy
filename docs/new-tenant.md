@@ -10,7 +10,7 @@ Throughout this guide `**TENANT**` is used as a placeholder. Replace it with the
 
 ## 1. Decide on tenant parameters
 
-Fill in the table below before creating the Tenant CR. All fields except `adminGroup` and `operatorGroup` have sensible defaults.
+Fill in the table below before creating the Tenant CR. All fields except `adminGroup` and `userGroup` have sensible defaults.
 
 ### 1.1 Identity & RBAC
 
@@ -18,8 +18,9 @@ Fill in the table below before creating the Tenant CR. All fields except `adminG
 | Parameter          | Description                                                                                                       | Example              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------- |
 | **Tenant name**    | Namespace name on managed clusters, used as prefix everywhere                                                     | `starwars`           |
-| **Tenant-Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:admin` on the hub console | `starwars-admins`    |
-| **Tenant-Operator group** | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-operators` |
+| **Tenant-Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:view` on the hub console  | `starwars-tenant-admin`  |
+| **Tenant-User group**     | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-tenant-user`   |
+| **Tenant-Viewer group**   | IdP group granted `view` in the namespace + `kubevirt.io:view` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-tenant-viewer` |
 
 
 Roles are fixed per group tier:
@@ -27,11 +28,12 @@ Roles are fixed per group tier:
 
 | Group tier       | Managed cluster namespace role | KubeVirt role       | ACM extended role       | ACM fleet console role |
 | ---------------- | ------------------------------ | ------------------- | ----------------------- | ---------------------- |
-| Tenant-Admin     | `admin`                        | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:admin`   |
-| Tenant-Operator  | `edit`                         | `kubevirt.io:edit`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
+| Tenant-Admin     | `admin`                        | `kubevirt.io:admin` | `acm-vm-extended:admin` | `acm-vm-fleet:view`    |
+| Tenant-User      | `edit`                         | `kubevirt.io:edit`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
+| Tenant-Viewer    | `view`                         | `kubevirt.io:view`  | `acm-vm-extended:view`  | `acm-vm-fleet:view`    |
 
 
-If you only need one group (e.g. no operator/view split), remove the operator RoleBinding and MulticlusterRoleAssignment blocks.
+The `viewerGroup` field is optional. If omitted, no viewer-tier resources are created. If you only need one group, remove the unused tiers from the Tenant CR.
 
 ### 1.2 ResourceQuota vs ApplicationAwareResourceQuota vs LimitRange
 
@@ -127,7 +129,7 @@ If the `network.metallb` section is omitted from the Tenant CR, no MetalLB resou
 
 ## 2. Create the Tenant CR
 
-Create a `Tenant` CR in the `tenancies` namespace on the hub. Only `adminGroup` and `operatorGroup` are required — all other fields have defaults from the CRD schema.
+Create a `Tenant` CR in the `tenancies` namespace on the hub. Only `adminGroup` and `userGroup` are required — all other fields have defaults from the CRD schema. The `viewerGroup` field is optional.
 
 Minimal example:
 
@@ -138,8 +140,9 @@ metadata:
   name: TENANT
   namespace: tenancies
 spec:
-  adminGroup: TENANT-admins
-  operatorGroup: TENANT-operators
+  adminGroup: TENANT-tenant-admin
+  userGroup: TENANT-tenant-user
+  viewerGroup: TENANT-tenant-viewer
 ```
 
 Full example with all fields: see [`examples/tenant-starwars.yaml`](../examples/tenant-starwars.yaml).
@@ -162,7 +165,7 @@ Once the Tenant CR is created, the policy evaluation cycle produces the followin
    - ResourceQuota, ApplicationAwareResourceQuota, LimitRange
    - UserDefinedNetwork (if `network.udnSubnet` is set)
    - MetalLB BGPPeer, IPAddressPool, BGPAdvertisement (if `network.metallb` is set)
-   - RoleBindings for Tenant-Admin and Tenant-Operator groups
+   - RoleBindings for Tenant-Admin, Tenant-User and Tenant-Viewer groups
 
 ---
 

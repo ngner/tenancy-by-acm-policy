@@ -28,6 +28,14 @@ policies:
       - path: tenancy/tenant-crd.yaml
       - path: tenancy/tenancies-namespace.yaml
 
+  - name: tenancy-hub-keycloak-realms
+    controls:
+      - Provision Tenant Keycloak Realms
+    dependencies:
+      - name: tenancy-hub-tenant-crd
+    manifests:
+      - path: keycloak/realm-import-from-crd.yaml
+
 policySets:
   - name: tenancy-hub-tenant-definition
     description: "Hub Tenant CRD and tenancies namespace -- foundation for all tenant policies"
