@@ -4,4 +4,4 @@ metadata:
   name: kubevirt-hyperconverged
   namespace: openshift-cnv
 spec:
-  enableApplicationAwareQuota: false
+  enableApplicationAwareQuota: true
