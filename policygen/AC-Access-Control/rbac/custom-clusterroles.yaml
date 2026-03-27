@@ -1,0 +1,78 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-ns:admin
+rules:
+  - apiGroups: [""]
+    resources:
+      - persistentvolumeclaims
+      - secrets
+      - configmaps
+      - services
+    verbs: [create, get, list, watch, update, patch, delete]
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - events
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources:
+      - resourcequotas
+      - limitranges
+    verbs: [get, list, watch]
+  - apiGroups: [cdi.kubevirt.io]
+    resources:
+      - datavolumes
+      - datasources
+    verbs: [create, get, list, watch, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-ns:user
+rules:
+  - apiGroups: [""]
+    resources:
+      - persistentvolumeclaims
+      - configmaps
+      - services
+      - pods
+      - pods/log
+      - events
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources:
+      - resourcequotas
+      - limitranges
+    verbs: [get, list, watch]
+  - apiGroups: [cdi.kubevirt.io]
+    resources:
+      - datavolumes
+      - datasources
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-ns:viewer
+rules:
+  - apiGroups: [""]
+    resources:
+      - persistentvolumeclaims
+      - configmaps
+      - services
+      - pods
+      - events
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources:
+      - resourcequotas
+      - limitranges
+    verbs: [get, list, watch]
+  - apiGroups: [cdi.kubevirt.io]
+    resources:
+      - datavolumes
+      - datasources
+    verbs: [get, list, watch]
