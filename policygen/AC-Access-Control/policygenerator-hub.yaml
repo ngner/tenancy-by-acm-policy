@@ -32,6 +32,6 @@ policies:
 
 policySets:
   - name: tenancy-hub-access-control
-    description: Hub RBAC for ACM console visibility and VM management rights propagated to managed clusters via MulticlusterRoleAssignments
+    description: Hub RBAC for ACM console visibility and all tenant namespace permissions (VM operations + least-privilege namespace access) propagated to managed clusters via MulticlusterRoleAssignments
     placement:
       placementName: policies-placement-hub-clusters

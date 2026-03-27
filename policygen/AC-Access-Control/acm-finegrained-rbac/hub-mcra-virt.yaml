@@ -30,6 +30,15 @@ object-templates-raw: |
             placements:
             - name: policies-placement-managed-clusters
               namespace: policies
+        - name: {{ $tenant.metadata.name }}-tenant-admin-namespace
+          clusterRole: tenant-ns:admin
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: policies-placement-managed-clusters
+              namespace: policies
   - complianceType: mustonlyhave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
@@ -53,6 +62,15 @@ object-templates-raw: |
               namespace: policies
         - name: {{ $tenant.metadata.name }}-tenant-user-virt-extended
           clusterRole: acm-vm-extended:view
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: policies-placement-managed-clusters
+              namespace: policies
+        - name: {{ $tenant.metadata.name }}-tenant-user-namespace
+          clusterRole: tenant-ns:user
           targetNamespaces:
           - {{ $tenant.metadata.name }}
           clusterSelection:
@@ -84,6 +102,15 @@ object-templates-raw: |
               namespace: policies
         - name: {{ $tenant.metadata.name }}-tenant-viewer-virt-extended
           clusterRole: acm-vm-extended:view
+          targetNamespaces:
+          - {{ $tenant.metadata.name }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: policies-placement-managed-clusters
+              namespace: policies
+        - name: {{ $tenant.metadata.name }}-tenant-viewer-namespace
+          clusterRole: tenant-ns:viewer
           targetNamespaces:
           - {{ $tenant.metadata.name }}
           clusterSelection:

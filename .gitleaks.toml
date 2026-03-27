@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[allowlist.paths]]
+description = "Keycloak realm import template contains a static OIDC client secret that matches the corresponding Secret in openshift-config"
+paths = [
+  '''policygen/SC-System-and-Communications-Protection/keycloak/realm-import-from-crd\.yaml''',
+]

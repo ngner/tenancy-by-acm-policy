@@ -21,19 +21,15 @@ policyDefaults:
   consolidateManifests: false
 
 policies:
-  - name: tenancy-managed-namespace-rbac
+  - name: tenancy-managed-custom-clusterroles
     controls:
-      - Enforce Namespace RBAC for Tenant-Admin, Tenant-User and Tenant-Viewer
-    dependencies:
-      - name: tenancy-managed-tenant-replication
-        namespace: tenancies
-        compliance: Compliant
-    consolidateManifests: false
+      - Deploy Least-Privilege ClusterRoles for Tenant Namespaces
+    complianceType: musthave
     manifests:
-      - path: rbac/managed-rolebindings.yaml
+      - path: rbac/custom-clusterroles.yaml
 
 policySets:
   - name: tenancy-managed-access-control
-    description: Managed cluster namespace RoleBindings granting Tenant-Admin, Tenant-User and Tenant-Viewer access
+    description: Managed cluster least-privilege ClusterRoles for tenant namespace access (bound via MCRA from hub)
     placement:
       placementName: policies-placement-managed-clusters

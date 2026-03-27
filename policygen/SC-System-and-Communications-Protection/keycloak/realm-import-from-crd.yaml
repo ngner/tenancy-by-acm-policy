@@ -1,6 +1,7 @@
 object-templates-raw: |
   {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
   {{- $name := $tenant.metadata.name }}
+  {{- $domain := (lookup "config.openshift.io/v1" "Ingress" "" "cluster").spec.domain }}
   - complianceType: musthave
     objectDefinition:
       apiVersion: k8s.keycloak.org/v2alpha1
@@ -41,9 +42,21 @@ object-templates-raw: |
                   temporary: true
           clients:
             - clientId: openshift-{{ $name }}
+              secret: VDRjA2vWjJwlSZQ9tickuGkBQpiiJHdN
               enabled: true
               directAccessGrantsEnabled: true
               standardFlowEnabled: true
               redirectUris:
-                - "*"
+                - "https://oauth-openshift.{{ $domain }}/oauth2callback/{{ $name }}-idp"
+              protocolMappers:
+                - name: groups
+                  protocol: openid-connect
+                  protocolMapper: oidc-group-membership-mapper
+                  consentRequired: false
+                  config:
+                    claim.name: groups
+                    full.path: "false"
+                    id.token.claim: "true"
+                    access.token.claim: "true"
+                    userinfo.token.claim: "true"
   {{- end }}

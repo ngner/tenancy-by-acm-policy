@@ -13,19 +13,59 @@ Add optional per-tenant overrides to the Tenant CRD:
 This would allow multiple Keycloak instances serving different sets of tenants
 and per-tenant opt-out without removing the Tenant CR.
 
-## Client secret management
+## Client secret management — DONE (static secret)
 
-The current implementation omits the OIDC client secret and uses a wildcard
-redirect URI. Production deployments require:
+A static client secret and proper redirect URI are now set on each
+`openshift-{tenant}` client in `realm-import-from-crd.yaml`. The redirect URI
+is derived from an Ingress config `lookup` at policy evaluation time.
+
+### Replacing the hardcoded secret with a `lookup`
+
+The static secret should be replaced with a dynamic `lookup` once the
+per-tenant Secrets exist in `openshift-config`. The approach:
+
+1. Create a new template (e.g., `client-secret-from-crd.yaml`) that iterates
+   Tenant CRs and emits a Secret per tenant in `openshift-config`:
+
+   ```yaml
+   object-templates-raw: |
+     {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+     {{- $name := $tenant.metadata.name }}
+     - complianceType: musthave
+       objectDefinition:
+         apiVersion: v1
+         kind: Secret
+         metadata:
+           name: {{ $name }}-client-secret
+           namespace: openshift-config
+         type: Opaque
+         stringData:
+           clientSecret: <generated-or-vault-sourced-value>
+     {{- end }}
+   ```
+
+2. In `realm-import-from-crd.yaml`, replace the hardcoded `secret:` line with
+   a `lookup` of that Secret:
+
+   ```yaml
+   {{- $clientSecret := (lookup "v1" "Secret" "openshift-config" (printf "%s-client-secret" $name)).data.clientSecret | base64dec }}
+   ...
+   secret: '{{ $clientSecret }}'
+   ```
+
+3. Add a policy dependency so the Keycloak realm import waits for the Secrets
+   to exist before evaluating.
+
+This removes the hardcoded secret from git and keeps the Keycloak client
+secret in sync with the OpenShift OAuth configuration. It also eliminates
+the `.gitleaks.toml` allowlist entry.
+
+### Remaining production hardening
 
 - Generate or reference per-tenant OIDC client secrets via SealedSecrets,
   External Secrets Operator, or HashiCorp Vault.
-- Create a corresponding `Secret` in `openshift-config` for each tenant so the
-  OpenShift OAuth server can complete the IdP handshake.
-- A new template (`client-secret-from-crd.yaml`) that iterates Tenant CRs and
-  emits Secrets in `openshift-config` with the client secret value.
-- Replace the wildcard `redirectUris: ["*"]` with the actual
-  `oauth-openshift.apps.<cluster>/oauth2callback/<tenant>-idp` callback URL.
+- Create the corresponding `Secret` in `openshift-config` for each tenant so
+  the OpenShift OAuth server can complete the IdP handshake.
 
 ## Seed admin password hardening
 
@@ -65,26 +105,12 @@ This is complex because the `OAuth/cluster` resource is a singleton — the
 policy must merge IdP entries rather than replace the list. Consider using
 `musthave` with a partial object or a server-side apply strategy.
 
-## Group mapper automation
+## Group mapper automation — DONE
 
-Include the Group Membership protocol mapper in the realm import so that
-tokens automatically contain the `groups` claim without manual Keycloak
-console configuration:
-
-```yaml
-clientScopes:
-  - name: openshift-{tenant}-dedicated
-    protocol: openid-connect
-    protocolMappers:
-      - name: groups-mapper
-        protocol: openid-connect
-        protocolMapper: oidc-group-membership-mapper
-        config:
-          claim.name: groups
-          full.path: "false"
-          id.token.claim: "true"
-          access.token.claim: "true"
-```
+An `oidc-group-membership-mapper` protocol mapper is now defined directly on
+each `openshift-{tenant}` client in `realm-import-from-crd.yaml`. The mapper
+emits a `groups` claim with `full.path: false` into ID, access, and userinfo
+tokens.
 
 ## Realm lifecycle
 
