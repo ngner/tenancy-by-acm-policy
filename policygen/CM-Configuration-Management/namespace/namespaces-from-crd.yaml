@@ -1,6 +1,6 @@
 object-templates-raw: |
   {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
-  - complianceType: mustonlyhave
+  - complianceType: musthave
     objectDefinition:
       kind: Namespace
       apiVersion: v1
