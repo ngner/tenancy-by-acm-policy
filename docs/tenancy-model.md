@@ -8,13 +8,15 @@ This document describes how the policies in this repository create tenant isolat
 
 Five personas interact with the tenancy platform. The first three are per-tenant roles implemented by the RBAC templates in this repository. The last two are platform-wide roles managed outside the tenant boundary.
 
-| Persona | Scope | Can do | Cannot do |
-|---|---|---|---|
-| **Tenant-Viewer** | Per-tenant namespace | View VMs and namespace resources in the ACM console | Start, stop, edit, create or delete VMs or any other resources |
-| **Tenant-User** | Per-tenant namespace | Start, stop, restart and access VMs; create and delete VMs (`kubevirt.io:edit`); view namespace resources | Create storage, secrets, or services directly; change quotas or RBAC |
-| **Tenant-Admin** | Per-tenant namespace | Create and manage VMs, storage (PVCs, DataVolumes), secrets, services; full VM lifecycle | Change resource quotas, RBAC roles, network policies, or the tenant definition; run non-VM container workloads (Deployments, Jobs, etc.) |
-| **Service Provider Operator** | Platform-wide | Create new tenancies; adjust quotas and tenant parameters | Change policies, tenancy architecture, or platform components |
-| **Service Provider Platform Admin** | Platform-wide | Change policies; add new components to the tenancy construct | Access namespaced tenant workloads directly |
+
+| Persona                             | Scope                | Can do                                                                                                    | Cannot do                                                                                                                                |
+| ----------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tenant-Viewer**                   | Per-tenant namespace | View VMs and namespace resources in the ACM console                                                       | Start, stop, edit, create or delete VMs or any other resources                                                                           |
+| **Tenant-User**                     | Per-tenant namespace | Start, stop, restart and access VMs; create and delete VMs (`kubevirt.io:edit`); view namespace resources | Create storage, secrets, or services directly; change quotas or RBAC                                                                     |
+| **Tenant-Admin**                    | Per-tenant namespace | Create and manage VMs, storage (PVCs, DataVolumes), secrets, services; full VM lifecycle                  | Change resource quotas, RBAC roles, network policies, or the tenant definition; run non-VM container workloads (Deployments, Jobs, etc.) |
+| **Service Provider Operator**       | Platform-wide        | Create new tenancies; adjust quotas and tenant parameters                                                 | Change policies, tenancy architecture, or platform components                                                                            |
+| **Service Provider Platform Admin** | Platform-wide        | Change policies; add new components to the tenancy construct                                              | Access namespaced tenant workloads directly                                                                                              |
+
 
 **Tenant-Admin** maps to the `adminGroup` field in the Tenant CRD and receives three roles via MulticlusterRoleAssignment: `tenant-ns:admin` (a custom least-privilege ClusterRole for PVC/Secret/ConfigMap/Service/DataVolume CRUD and Pod/Event read-only), `kubevirt.io:admin` for VM operations, and `acm-vm-extended:admin` for ACM console VM management. On the hub, a ClusterRoleBinding grants `acm-vm-fleet:view` for console visibility.
 
@@ -31,7 +33,6 @@ Five personas interact with the tenancy platform. The first three are per-tenant
 A tenant boundary is formed by **four core** controls that apply to every managed cluster: **namespace**, **RBAC**, **primary network (UserDefinedNetwork)** and **Resource quotas**.
 
 **Network isolation between tenants comes primarily from UserDefinedNetworks (UDNs):** each tenant's workloads attach to a UDN that is a **fully isolated** logical network in OVN-Kubernetes.
-
 
 ### Layer 1: Namespace
 
@@ -110,15 +111,19 @@ flowchart TD
     metallbB ---|"ingress / egress via BGP"| external
 ```
 
+
+
 ### Resource caps (sizing, not isolation)
 
 Quotas and LimitRanges **do not replace** network or RBAC isolation; they cap **how much** a tenant may consume in their own namespace:
 
-| Control | What it bounds |
-| --- | --- |
-| **ResourceQuota** | **Total** CPU/memory/pods/storage **requests** summed over **all** pods and PVCs in the namespace. |
-| **ApplicationAwareResourceQuota** (**AAQ**) | **Total** CPU/memory attributed to **KubeVirt VMIs** only (the `…/vmi` counters). Parallel to ResourceQuota — both must allow a new VM to schedule. |
-| **LimitRange** | **Per** object **maximums only** here (no defaults): caps the **largest** single container pod and **per-PVC** size so VM launcher and service pods must declare their own requests. |
+
+| Control                                     | What it bounds                                                                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **ResourceQuota**                           | **Total** CPU/memory/pods/storage **requests** summed over **all** pods and PVCs in the namespace.                                                                                   |
+| **ApplicationAwareResourceQuota** (**AAQ**) | **Total** CPU/memory attributed to **KubeVirt VMIs** only (the `…/vmi` counters). Parallel to ResourceQuota — both must allow a new VM to schedule.                                  |
+| **LimitRange**                              | **Per** object **maximums only** here (no defaults): caps the **largest** single container pod and **per-PVC** size so VM launcher and service pods must declare their own requests. |
+
 
 For the full distinction and default numbers, see **[Creating a new tenant — section 1.2](new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange)**.
 
@@ -128,17 +133,21 @@ For the full distinction and default numbers, see **[Creating a new tenant — s
 
 Tenant users access their VMs through the ACM hub console without needing a direct login to any managed cluster. This is enabled by a two-tier RBAC model that the hub policies establish.
 
+![Tenant Console Access](pictures/tenant-console.png)
+
 ### Tier 1 — ACM console visibility (hub cluster)
 
 `policygen/AC-Access-Control/policygenerator-hub.yaml`
 
 A `ClusterRoleBinding` on the hub grants each tenant group the `acm-vm-fleet:view` role — the documented minimum for fleet virtualization console access (RHACM Scenario 2):
 
-| Group tier | Hub ClusterRole | Effect |
-|---|---|---|
-| Tenant-Admin | `acm-vm-fleet:view` | Fleet virtualization console visibility |
-| Tenant-User | `acm-vm-fleet:view` | Fleet virtualization console visibility |
+
+| Group tier    | Hub ClusterRole     | Effect                                  |
+| ------------- | ------------------- | --------------------------------------- |
+| Tenant-Admin  | `acm-vm-fleet:view` | Fleet virtualization console visibility |
+| Tenant-User   | `acm-vm-fleet:view` | Fleet virtualization console visibility |
 | Tenant-Viewer | `acm-vm-fleet:view` | Fleet virtualization console visibility |
+
 
 This controls what the tenant sees in the ACM UI. Without it, the tenant group has no console visibility even if they have direct cluster access. The stronger `acm-vm-fleet:admin` role is only required for cross-cluster live migration and is intentionally not granted to tenant groups.
 
@@ -148,11 +157,13 @@ This controls what the tenant sees in the ACM UI. Without it, the tenant group h
 
 A `MulticlusterRoleAssignment` (`rbac.open-cluster-management.io/v1beta1`) is created on the hub and evaluated by ACM's fine-grained RBAC controller. It propagates RoleBindings to every cluster matched by the Placement, scoped to the tenant namespace. All tenant namespace RBAC — including both VM operations and general namespace resource access — is delivered through this mechanism.
 
-| Group tier | Namespace role | KubeVirt role | ACM extended role |
-|---|---|---|---|
-| Tenant-Admin | `tenant-ns:admin` | `kubevirt.io:admin` | `acm-vm-extended:admin` |
-| Tenant-User | `tenant-ns:user` | `kubevirt.io:edit` | `acm-vm-extended:view` |
-| Tenant-Viewer | `tenant-ns:viewer` | `kubevirt.io:view` | `acm-vm-extended:view` |
+
+| Group tier    | Namespace role     | KubeVirt role       | ACM extended role       |
+| ------------- | ------------------ | ------------------- | ----------------------- |
+| Tenant-Admin  | `tenant-ns:admin`  | `kubevirt.io:admin` | `acm-vm-extended:admin` |
+| Tenant-User   | `tenant-ns:user`   | `kubevirt.io:edit`  | `acm-vm-extended:view`  |
+| Tenant-Viewer | `tenant-ns:viewer` | `kubevirt.io:view`  | `acm-vm-extended:view`  |
+
 
 - `tenant-ns:admin`/`user`/`viewer` — custom least-privilege ClusterRoles scoped to VM-supporting resources (PVCs, Secrets, ConfigMaps, Services, DataVolumes, Pods, Events). Admin gets CRUD on storage and config resources; user and viewer get read-only. These replace the broad built-in `admin`/`edit`/`view` ClusterRoles.
 - `kubevirt.io:admin`/`edit`/`view` — allows the ACM console to proxy the VM's VNC and serial console on behalf of the user (admin/edit); also grants power operations (start, stop, restart, live migrate). The `view` role grants read-only access.
@@ -180,16 +191,20 @@ sequenceDiagram
     kv-->>user: Console session
 ```
 
+
+
 ### What each role allows
 
-| Action | acm-vm-fleet:view (hub) | kubevirt.io:admin (managed) | kubevirt.io:edit (managed) | kubevirt.io:view (managed) |
-|---|:---:|:---:|:---:|:---:|
-| See VMs in ACM console | Y | — | — | — |
-| Start / stop / restart VM | — | Y | Y | N |
-| Open VNC / serial console | — | Y | Y | N |
-| Edit VM spec | — | Y | Y | N |
-| Delete VM | — | Y | N | N |
-| View VM (read-only) | — | Y | Y | Y |
+
+| Action                    | acm-vm-fleet:view (hub) | kubevirt.io:admin (managed) | kubevirt.io:edit (managed) | kubevirt.io:view (managed) |
+| ------------------------- | ----------------------- | --------------------------- | -------------------------- | -------------------------- |
+| See VMs in ACM console    | Y                       | —                           | —                          | —                          |
+| Start / stop / restart VM | —                       | Y                           | Y                          | N                          |
+| Open VNC / serial console | —                       | Y                           | Y                          | N                          |
+| Edit VM spec              | —                       | Y                           | Y                          | N                          |
+| Delete VM                 | —                       | Y                           | N                          | N                          |
+| View VM (read-only)       | —                       | Y                           | Y                          | Y                          |
+
 
 Note: `acm-vm-fleet:admin` (not shown) is only required for cross-cluster live migration and is not granted to tenant groups.
 
@@ -199,19 +214,21 @@ Note: `acm-vm-fleet:admin` (not shown) is only required for cross-cluster live m
 
 This section is aimed at teams migrating from or familiar with vCloud Director. The table maps constructs in this repository to their nearest vCD counterpart.
 
-| OCP / ACM / KubeVirt construct | VMware vCloud Director equivalent | Notes |
-|---|---|---|
-| Kubernetes **Namespace** | **vCD Organization (Org)** | Primary tenancy boundary and administrative unit. One per tenant. |
-| **ResourceQuota** | **Org VDC Allocation Pool / Pay-As-You-Go model** | **Namespace total** — caps summed CPU/memory/pods/PVC storage for **all** workloads in the tenant. |
-| **ApplicationAwareResourceQuota** (AAQ) | **VM-only reservation / VM quota** within an Org VDC | **VMI aggregate** — caps total VM compute using `/vmi` counters; complements ResourceQuota; does not replace it. |
-| **LimitRange** | **Max VM size / max disk per vApp component** | **Per object** — here, **max only** (no default sizing); workloads declare their own reservations. |
-| **UserDefinedNetwork** (OVN) | **Isolated Org VDC network** | **Primary inter-tenant isolation** for workloads on that network — logically separate from other tenants; **overlapping IP plans** across Orgs/UDNs are normal and do not break isolation. |
-| **MetalLB BGPPeer + IPAddressPool + VRF** | **vCD Edge Gateway + External Network** | Per-tenant north/south connectivity; distinct from UDN-to-UDN isolation. |
-| **Custom ClusterRole** (`tenant-ns:admin` / `user` / `viewer`) | **vCD Org Administrator / vApp Author role** | Least-privilege namespace access for VM-supporting resources (PVCs, Secrets, Services, DataVolumes). Bound via MCRA, not direct RoleBindings. No cross-tenant visibility. |
-| **ACM MulticlusterRoleAssignment** (`kubevirt.io:admin` + `tenant-ns:admin`) | **vCD Organization Administrator** with VDC rights | Propagates all tenant namespace permissions — VM management and supporting resource access — across clusters, scoped to the tenant namespace. Equivalent to giving an Org Admin the right to manage VMs within their Org VDC. |
-| **ACM fleet ClusterRoleBinding** (`acm-vm-fleet:view`) | **vCD Tenant Portal access** for Org Administrators | Grants visibility into the management console (ACM / vCD tenant portal) for the tenant's group. Without it, the tenant cannot see the console even with underlying cluster rights. |
-| **KubeVirt VM console** (ACM proxied via `kubevirt.io:admin`) | **vCD VM Remote Console (VMRC)** via tenant portal | Browser-based VM console access proxied through the management plane. Neither the ACM user nor the vCD tenant user needs direct hypervisor access. |
-| **ACM Policy** (`remediationAction: enforce`) | **vCD Defined Entities / Org Policies** | Declarative enforcement — if a resource drifts from the desired state, ACM re-applies it. vCD Defined Entities provide similar schema-enforced resource governance within an Org. |
+
+| OCP / ACM / KubeVirt construct                                               | VMware vCloud Director equivalent                    | Notes                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kubernetes **Namespace**                                                     | **vCD Organization (Org)**                           | Primary tenancy boundary and administrative unit. One per tenant.                                                                                                                                                             |
+| **ResourceQuota**                                                            | **Org VDC Allocation Pool / Pay-As-You-Go model**    | **Namespace total** — caps summed CPU/memory/pods/PVC storage for **all** workloads in the tenant.                                                                                                                            |
+| **ApplicationAwareResourceQuota** (AAQ)                                      | **VM-only reservation / VM quota** within an Org VDC | **VMI aggregate** — caps total VM compute using `/vmi` counters; complements ResourceQuota; does not replace it.                                                                                                              |
+| **LimitRange**                                                               | **Max VM size / max disk per vApp component**        | **Per object** — here, **max only** (no default sizing); workloads declare their own reservations.                                                                                                                            |
+| **UserDefinedNetwork** (OVN)                                                 | **Isolated Org VDC network**                         | **Primary inter-tenant isolation** for workloads on that network — logically separate from other tenants; **overlapping IP plans** across Orgs/UDNs are normal and do not break isolation.                                    |
+| **MetalLB BGPPeer + IPAddressPool + VRF**                                    | **vCD Edge Gateway + External Network**              | Per-tenant north/south connectivity; distinct from UDN-to-UDN isolation.                                                                                                                                                      |
+| **Custom ClusterRole** (`tenant-ns:admin` / `user` / `viewer`)               | **vCD Org Administrator / vApp Author role**         | Least-privilege namespace access for VM-supporting resources (PVCs, Secrets, Services, DataVolumes). Bound via MCRA, not direct RoleBindings. No cross-tenant visibility.                                                     |
+| **ACM MulticlusterRoleAssignment** (`kubevirt.io:admin` + `tenant-ns:admin`) | **vCD Organization Administrator** with VDC rights   | Propagates all tenant namespace permissions — VM management and supporting resource access — across clusters, scoped to the tenant namespace. Equivalent to giving an Org Admin the right to manage VMs within their Org VDC. |
+| **ACM fleet ClusterRoleBinding** (`acm-vm-fleet:view`)                       | **vCD Tenant Portal access** for Org Administrators  | Grants visibility into the management console (ACM / vCD tenant portal) for the tenant's group. Without it, the tenant cannot see the console even with underlying cluster rights.                                            |
+| **KubeVirt VM console** (ACM proxied via `kubevirt.io:admin`)                | **vCD VM Remote Console (VMRC)** via tenant portal   | Browser-based VM console access proxied through the management plane. Neither the ACM user nor the vCD tenant user needs direct hypervisor access.                                                                            |
+| **ACM Policy** (`remediationAction: enforce`)                                | **vCD Defined Entities / Org Policies**              | Declarative enforcement — if a resource drifts from the desired state, ACM re-applies it. vCD Defined Entities provide similar schema-enforced resource governance within an Org.                                             |
+
 
 ### Conceptual mapping
 
@@ -242,9 +259,12 @@ flowchart LR
     orgadmin <--> fleetrole
 ```
 
+
+
 ---
 
 ## 5. Future considerations
 
-- **`kubevirt.io:edit` grants VM CRUD** — the Tenant-User persona is intended for day-to-day VM operations (start, stop, restart, console access) but `kubevirt.io:edit` also permits creating and deleting VMs. If that distinction is important, a custom KubeVirt ClusterRole would be needed. This is a separate effort since the standard `kubevirt.io:*` roles are operator-provided.
+- `**kubevirt.io:edit` grants VM CRUD** — the Tenant-User persona is intended for day-to-day VM operations (start, stop, restart, console access) but `kubevirt.io:edit` also permits creating and deleting VMs. If that distinction is important, a custom KubeVirt ClusterRole would be needed. This is a separate effort since the standard `kubevirt.io:`* roles are operator-provided.
 - **Orphan cleanup** — if migrating from a previous RBAC model that used direct RoleBindings (referencing the built-in `admin`/`edit`/`view` ClusterRoles), those RoleBindings will need a one-time cleanup on managed clusters. A temporary `mustnothave` policy can automate this.
+
