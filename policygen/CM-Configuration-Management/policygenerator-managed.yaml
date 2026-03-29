@@ -37,12 +37,12 @@ policies:
     manifests:
       - path: namespace/namespaces-from-crd.yaml
 
-  - name: tenancy-managed-aaq-enable
-    controls:
-      - Enable VM-Aware Quota Controller
-    manifests:
-      - path: quota/hyperconverged-aaq-enabled.yaml
-    complianceType: musthave
+  # - name: tenancy-managed-aaq-enable
+  #   controls:
+  #     - Enable VM-Aware Quota Controller
+  #   manifests:
+  #     - path: quota/hyperconverged-aaq-enabled.yaml
+  #   complianceType: musthave
 
   - name: tenancy-managed-quotas
     controls:
