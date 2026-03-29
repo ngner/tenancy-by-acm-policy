@@ -3,6 +3,7 @@ kind: Console
 metadata:
   name: cluster
 spec:
+  managementState: Managed
   customization:
     perspectives:
       # 1. Hide Administrator from tenants (only users who can list clusteroperators will see it)

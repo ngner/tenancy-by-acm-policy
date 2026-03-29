@@ -22,6 +22,7 @@ policyDefaults:
 
 policies:
   - name: tenancy-managed-tenant-crd
+    complianceType: mustonlyhave
     controls:
       - Deploy Tenant CRD to Managed Clusters
     manifests:
