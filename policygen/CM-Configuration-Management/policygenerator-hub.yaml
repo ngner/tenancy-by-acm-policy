@@ -21,11 +21,17 @@ policyDefaults:
   consolidateManifests: false
 
 policies:
-  - name: tenancy-hub-admin-network-policy
+  # - name: tenancy-hub-admin-network-policy
+  ## NOT REQUIRED ON THE HUB
+  #   controls:
+  #     - Enforce Cross-Tenant Network Deny
+  #   manifests:
+  #     - path: network-policy/admin-network-policy.yaml
+  - name: tenancy-hub-console-perspective-visibility
     controls:
-      - Enforce Cross-Tenant Network Deny
+      - Enforce ACM Console Perspective Visibility
     manifests:
-      - path: network-policy/admin-network-policy.yaml
+      - path: console/policy-console-perspective-rbac.yaml
 
 policySets:
   - name: tenancy-hub-configuration

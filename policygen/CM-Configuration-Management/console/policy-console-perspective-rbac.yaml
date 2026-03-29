@@ -1,0 +1,36 @@
+apiVersion: operator.openshift.io/v1
+kind: Console
+metadata:
+  name: cluster
+spec:
+  customization:
+    perspectives:
+      # 1. Hide Administrator from tenants (only users who can list clusteroperators will see it)
+      - id: admin
+        visibility:
+          accessReview:
+            required:
+              - group: config.openshift.io
+                resource: clusteroperators
+                verb: list
+          state: AccessReview
+          
+      # 2. Explicitly disable Developer perspective (even though 4.19+ disables by default)
+      - id: dev
+        visibility:
+          state: Disabled
+          
+      # 3. Enable the OpenShift Virtualization perspective
+      - id: virtualization-perspective
+        visibility:
+          state: Enabled
+          
+      # 4. Enable the ACM "Fleet Management" perspective
+      - id: acm
+        visibility:
+          accessReview:
+            required:
+              - group: config.openshift.io
+                resource: clusteroperators
+                verb: list
+          state: AccessReview
