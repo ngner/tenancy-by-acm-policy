@@ -22,16 +22,12 @@ policyDefaults:
 
 policies:
   - name: tenancy-managed-admin-network-policy
-    controls:
-      - Tenant Construct: AdminNetworkPolicy
-      - Deploy Tenant Cross-Tenant Network Deny
+    controls: Deploy Tenant Cross-Tenant Network Deny
     manifests:
       - path: network-policy/admin-network-policy.yaml
 
   - name: tenancy-managed-namespaces
-    controls:
-      - Tenant Construct: Namespace
-      - Deploy Tenant Namespaces
+    controls: Deploy Tenant Namespaces
     dependencies:
       - name: tenancy-managed-tenant-replication
         namespace: tenancies
@@ -47,9 +43,7 @@ policies:
   #   complianceType: musthave
 
   - name: tenancy-managed-quotas
-    controls:
-      - Tenant Construct: ResourceQuota
-      - Deploy Tenant Resource Quotas
+    controls: Deploy Tenant Resource Quotas
     dependencies:
       - name: tenancy-managed-namespaces
         compliance: Compliant
@@ -59,9 +53,7 @@ policies:
       - path: quota/quotas-from-crd.yaml
 
   - name: tenancy-managed-udn-network
-    controls:
-      - Tenant Construct: UserDefinedNetwork
-      - Deploy Tenant Networks via UDN
+    controls: Deploy Tenant Networks via UDN
     dependencies:
       - name: tenancy-managed-namespaces
         compliance: Compliant
@@ -69,9 +61,7 @@ policies:
       - path: network/udn-from-crd.yaml
 
   - name: tenancy-managed-metallb-bgp
-    controls:
-      - Tenant Construct: MetalLB BGP
-      - Deploy Tenant External Connectivity via BGP
+    controls: Deploy Tenant External Connectivity via BGP
     dependencies:
       - name: tenancy-managed-namespaces
         compliance: Compliant

@@ -22,9 +22,7 @@ policyDefaults:
 
 policies:
   - name: tenancy-managed-custom-clusterroles
-    controls:
-      - Tenant Construct: RBAC
-      - Deploy Tenant Least-Privilege ClusterRoles for Tenant Namespaces
+    controls: Deploy Tenant Least-Privilege ClusterRoles for Tenant Namespaces
     complianceType: musthave
     manifests:
       - path: rbac/custom-clusterroles.yaml

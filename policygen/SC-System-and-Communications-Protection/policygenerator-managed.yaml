@@ -23,17 +23,13 @@ policyDefaults:
 policies:
   - name: tenancy-managed-tenant-crd
     complianceType: mustonlyhave
-    controls:
-      - Tenant Construct: Tenant CRD
-      - Deploy Tenant CRD to Managed Clusters
+    controls: Deploy Tenant CRD to Managed Clusters
     manifests:
       - path: tenancy/tenant-crd.yaml
       - path: tenancy/tenancies-namespace.yaml
 
   - name: tenancy-managed-tenant-replication
-    controls:
-      - Tenant Construct: Tenant Replication
-      - Deploy Tenant Definitions to Managed Clusters
+    controls: Deploy Tenant Definitions to Managed Clusters
     manifests:
       - path: tenancy/bridge-tenants.yaml
     dependencies:
