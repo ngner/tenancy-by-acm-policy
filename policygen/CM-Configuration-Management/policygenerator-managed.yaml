@@ -50,8 +50,8 @@ policies:
     dependencies:
       - name: tenancy-managed-namespaces
         compliance: Compliant
-      - name: tenancy-managed-aaq-enable
-        compliance: Compliant
+      # - name: tenancy-managed-aaq-enable
+      #   compliance: Compliant
     manifests:
       - path: quota/quotas-from-crd.yaml
 
