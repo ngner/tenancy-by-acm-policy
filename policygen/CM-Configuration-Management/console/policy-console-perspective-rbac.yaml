@@ -25,7 +25,7 @@ spec:
         visibility:
           state: Enabled
           
-      # 4. Enable the ACM "Fleet Management" perspective
+      # 4. Hide the ACM "Fleet Management" perspective from tenants (only users who can list clusteroperators will see it)
       - id: acm
         visibility:
           accessReview:

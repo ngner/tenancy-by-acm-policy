@@ -17,7 +17,7 @@ policyDefaults:
   severity: high
   standards:
     - Multi-Tenant Isolation
-  complianceType: mustonlyhave
+  complianceType: musthave
   consolidateManifests: false
 
 policies:
