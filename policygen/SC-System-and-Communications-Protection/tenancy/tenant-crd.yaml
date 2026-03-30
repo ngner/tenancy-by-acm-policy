@@ -26,7 +26,6 @@ spec:
               required:
                 - adminGroup
                 - userGroup
-                - network.udnSubnet
               properties:
                 # -----------------------------------------------------------
                 # Identity & RBAC
