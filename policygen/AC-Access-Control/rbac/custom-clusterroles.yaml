@@ -27,6 +27,14 @@ rules:
       - datavolumes
       - datasources
     verbs: [create, get, list, watch, update, patch, delete]
+    - apiGroups: [template.openshift.io]
+    resources:
+      - processedtemplates
+    verbs: [create]
+  - apiGroups: [template.openshift.io]
+    resources:
+      - templates
+    verbs: [get, list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
