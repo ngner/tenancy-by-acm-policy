@@ -23,7 +23,7 @@ policyDefaults:
 policies:
   - name: tenancy-managed-admin-network-policy
     controls:
-      - Deploy Tenant Cross-Tenant Network Deny
+      - Deploy Tenant admin network policy
     manifests:
       - path: network-policy/admin-network-policy.yaml
 

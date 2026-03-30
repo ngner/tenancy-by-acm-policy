@@ -24,7 +24,7 @@ policies:
   - name: tenancy-hub-tenant-crd
     complianceType: mustonlyhave
     controls:
-      - Deploy Tenant CRD to Hub
+      - Hub create tenant CRD
     manifests:
       - path: tenancy/tenant-crd.yaml
       - path: tenancy/tenancies-namespace.yaml

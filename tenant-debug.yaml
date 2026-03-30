@@ -1,0 +1,118 @@
+apiVersion: v1
+items:
+- apiVersion: dusty-seahorse.io/v1alpha1
+  kind: Tenant
+  metadata:
+    creationTimestamp: "2026-03-29T23:26:22Z"
+    generation: 1
+    name: battlestar
+    namespace: tenancies
+    resourceVersion: "2365540"
+    uid: 7cbc3370-8e0b-4436-9c82-44c28fc5c933
+  spec:
+    adminGroup: battlestar-tenant-admin
+    displayName: Battlestar Galactica
+    limitRange:
+      maxCpu: "64"
+      maxMemory: 128Gi
+      maxStorage: 1Ti
+    network:
+      metallb:
+        myASN: 64500
+        vrf: battlestar-vrf
+    owner: mbuswell@gmail.com
+    resourceQuota:
+      cpu: "86"
+      memory: 332Gi
+      pods: "15"
+      storage: 2000Gi
+    userGroup: battlestar-tenant-user
+    viewerGroup: battlestar-tenant-viewer
+    vmQuota:
+      cpu: "80"
+      memory: 320Gi
+- apiVersion: dusty-seahorse.io/v1alpha1
+  kind: Tenant
+  metadata:
+    annotations:
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/tracking-id: tenancy-base:dusty-seahorse.io/Tenant:tenancies/startrek
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"dusty-seahorse.io/v1alpha1","kind":"Tenant","metadata":{"annotations":{"argocd.argoproj.io/compare-options":"IgnoreExtraneous","argocd.argoproj.io/tracking-id":"tenancy-base:dusty-seahorse.io/Tenant:tenancies/startrek"},"name":"startrek","namespace":"tenancies"},"spec":{"adminGroup":"startrek-tenant-admin","displayName":"Star Trek","limitRange":{"maxCpu":"32","maxMemory":"128Gi","maxStorage":"1Ti"},"network":{"metallb":{"addresses":["192.168.12.0/24"],"myASN":64500,"peerASN":64502,"peerAddress":"192.168.1.2","vrf":"startrek-vrf"},"udnSubnet":"10.0.2.0/24"},"owner":"platform-team@example.com","resourceQuota":{"cpu":"86","memory":"332Gi","pods":"15","storage":"2000Gi"},"userGroup":"startrek-tenant-user","viewerGroup":"startrek-tenant-viewer","vmQuota":{"cpu":"80","memory":"320Gi"}}}
+    creationTimestamp: "2026-03-29T22:59:03Z"
+    generation: 1
+    name: startrek
+    namespace: tenancies
+    resourceVersion: "2319323"
+    uid: 11acd195-76d5-4f95-95ed-dd79c31026b6
+  spec:
+    adminGroup: startrek-tenant-admin
+    displayName: Star Trek
+    limitRange:
+      maxCpu: "32"
+      maxMemory: 128Gi
+      maxStorage: 1Ti
+    network:
+      metallb:
+        addresses:
+        - 192.168.12.0/24
+        myASN: 64500
+        peerASN: 64502
+        peerAddress: 192.168.1.2
+        vrf: startrek-vrf
+      udnSubnet: 10.0.2.0/24
+    owner: platform-team@example.com
+    resourceQuota:
+      cpu: "86"
+      memory: 332Gi
+      pods: "15"
+      storage: 2000Gi
+    userGroup: startrek-tenant-user
+    viewerGroup: startrek-tenant-viewer
+    vmQuota:
+      cpu: "80"
+      memory: 320Gi
+- apiVersion: dusty-seahorse.io/v1alpha1
+  kind: Tenant
+  metadata:
+    annotations:
+      argocd.argoproj.io/compare-options: IgnoreExtraneous
+      argocd.argoproj.io/tracking-id: tenancy-base:dusty-seahorse.io/Tenant:tenancies/starwars
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"dusty-seahorse.io/v1alpha1","kind":"Tenant","metadata":{"annotations":{"argocd.argoproj.io/compare-options":"IgnoreExtraneous","argocd.argoproj.io/tracking-id":"tenancy-base:dusty-seahorse.io/Tenant:tenancies/starwars"},"name":"starwars","namespace":"tenancies"},"spec":{"adminGroup":"starwars-tenant-admin","displayName":"Star Wars","limitRange":{"maxCpu":"32","maxMemory":"128Gi","maxStorage":"1Ti"},"network":{"metallb":{"addresses":["192.168.11.0/24"],"myASN":64500,"peerASN":64501,"peerAddress":"192.168.1.1","vrf":"starwars-vrf"},"udnSubnet":"10.0.1.0/24"},"owner":"platform-team@example.com","resourceQuota":{"cpu":"86","memory":"332Gi","pods":"15","storage":"2000Gi"},"userGroup":"starwars-tenant-user","viewerGroup":"starwars-tenant-viewer","vmQuota":{"cpu":"80","memory":"320Gi"}}}
+    creationTimestamp: "2026-03-29T22:59:03Z"
+    generation: 1
+    name: starwars
+    namespace: tenancies
+    resourceVersion: "2319324"
+    uid: 5323ce28-725f-4592-abb0-eb148b316f1c
+  spec:
+    adminGroup: starwars-tenant-admin
+    displayName: Star Wars
+    limitRange:
+      maxCpu: "32"
+      maxMemory: 128Gi
+      maxStorage: 1Ti
+    network:
+      metallb:
+        addresses:
+        - 192.168.11.0/24
+        myASN: 64500
+        peerASN: 64501
+        peerAddress: 192.168.1.1
+        vrf: starwars-vrf
+      udnSubnet: 10.0.1.0/24
+    owner: platform-team@example.com
+    resourceQuota:
+      cpu: "86"
+      memory: 332Gi
+      pods: "15"
+      storage: 2000Gi
+    userGroup: starwars-tenant-user
+    viewerGroup: starwars-tenant-viewer
+    vmQuota:
+      cpu: "80"
+      memory: 320Gi
+kind: List
+metadata:
+  resourceVersion: ""
