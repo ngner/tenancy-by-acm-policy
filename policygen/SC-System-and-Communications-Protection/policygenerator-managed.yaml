@@ -21,24 +21,20 @@ policyDefaults:
   orderManifests: true
 
 policies:
-  - name: tenancy-managed-tenant-crd
+  - name: tenancy-managed-tenant-foundation
+    description: >-
+      Influences all spokes: Tenant CRD, tenancies namespace, and replication of
+      Tenant CRs from hub (required before namespace/quota policies run).
     complianceType: mustonlyhave
     controls:
-      - Deploy Tenant CRD to Managed Clusters
+      - Deploy Tenant Foundation to Managed Clusters
     manifests:
       - path: tenancy/tenant-crd.yaml
       - path: tenancy/tenancies-namespace.yaml
-
-  - name: tenancy-managed-tenant-replication
-    controls:
-      - Deploy Tenant Definitions to Managed Clusters
-    manifests:
       - path: tenancy/bridge-tenants.yaml
-    dependencies:
-      - name: tenancy-managed-tenant-crd
 
 policySets:
   - name: tenancy-managed-tenant-definition
-    description: Managed cluster Tenant CRD deployment and Tenant CR replication from hub
+    description: Spoke tenant foundation — CRD, tenancies namespace, and Tenant CR sync from hub.
     placement:
       placementName: tenancies-placement-managed-clusters

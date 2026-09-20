@@ -41,3 +41,4 @@ spec:
       kind: ManagedClusterSetBinding
   sourceRepos:
     - https://github.com/ngner/tenancy-by-acm-policy.git
+    - https://github.com/mandibuswell/tenancy-by-acm-policy.git

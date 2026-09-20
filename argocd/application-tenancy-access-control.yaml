@@ -6,7 +6,7 @@ metadata:
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: policies
+    namespace: tenancies
     server: https://kubernetes.default.svc
   project: tenancy-policy
   source:

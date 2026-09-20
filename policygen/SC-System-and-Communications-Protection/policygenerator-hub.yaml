@@ -22,14 +22,23 @@ policyDefaults:
 
 policies:
   - name: tenancy-hub-tenant-crd
+    description: >-
+      Influences hub: Tenant CRD and tenancies namespace — source of truth for
+      all tenant automation (must exist before other policies run).
     complianceType: mustonlyhave
     controls:
       - Hub create tenant CRD
     manifests:
       - path: tenancy/tenant-crd.yaml
       - path: tenancy/tenancies-namespace.yaml
+        # mustonlyhave fights Tekton/OpenShift labels on the namespace and triggers
+        # namespace-validation webhook dry-runs; musthave only ensures the NS exists.
+        complianceType: musthave
 
   - name: tenancy-hub-keycloak-realms
+    description: >-
+      Influences hub Keycloak: KeycloakRealmImport CRs for tenants with
+      identity.manageRealm enabled (pruned when Tenant CR is deleted).
     controls:
       - Provision Tenant Keycloak Realms (opt-in manageRealm only)
     dependencies:
@@ -40,6 +49,9 @@ policies:
       - path: keycloak/realm-import-from-crd.yaml
 
   - name: tenancy-hub-identity-reconciler
+    description: >-
+      Influences hub OAuth: CronJob that adds/removes per-tenant OpenShift IdPs
+      and client secrets from Tenant spec.identity settings.
     controls:
       - Register Tenant OpenShift OAuth IdPs
     dependencies:
@@ -47,8 +59,19 @@ policies:
     manifests:
       - path: keycloak/identity-reconciler.yaml
 
+  - name: tenancy-hub-vm-seed-reconciler
+    description: >-
+      Influences hub + VM spokes: CronJob that fans out starter VM ManifestWorks
+      to clusters selected in Tenant spec.seedStarterVm.
+    controls:
+      - Seed Starter VMs for VM Tenants
+    dependencies:
+      - name: tenancy-hub-tenant-crd
+    manifests:
+      - path: tenancy/seed-vm-reconciler.yaml
+
 policySets:
   - name: tenancy-hub-tenant-definition
-    description: "Hub Tenant CRD and tenancies namespace -- foundation for all tenant policies"
+    description: Hub tenant platform — CRD, Keycloak realms, OAuth IdPs, and starter VM seeding.
     placement:
       placementName: tenancies-placement-hub-clusters

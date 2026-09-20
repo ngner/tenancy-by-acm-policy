@@ -1,12 +1,19 @@
 object-templates-raw: |
   {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $profile := $tenant.spec.workloadProfile | default "vms" }}
+  {{- $tenantName := $tenant.metadata.name }}
+  {{- $workloadNs := $tenant.spec.workloadNamespace | default $tenantName }}
+  {{- if or (eq $profile "vms") (eq $profile "both") }}
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-admin-virt
-        namespace: policies
+        name: {{ $tenantName }}-tenant-admin-virt
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
       spec:
         subject:
           kind: Group
@@ -15,37 +22,31 @@ object-templates-raw: |
         - name: {{ $tenant.metadata.name }}-tenant-admin-virt-kubevirt
           clusterRole: kubevirt.io:admin
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
         - name: {{ $tenant.metadata.name }}-tenant-admin-virt-extended
           clusterRole: acm-vm-extended:admin
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
-        - name: {{ $tenant.metadata.name }}-tenant-admin-namespace
-          clusterRole: tenant-ns:admin
-          targetNamespaces:
-          - {{ $tenant.metadata.name }}
-          clusterSelection:
-            type: placements
-            placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-user-virt
-        namespace: policies
+        name: {{ $tenantName }}-tenant-user-virt
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
       spec:
         subject:
           kind: Group
@@ -54,38 +55,32 @@ object-templates-raw: |
         - name: {{ $tenant.metadata.name }}-tenant-user-virt-kubevirt
           clusterRole: kubevirt.io:edit
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
         - name: {{ $tenant.metadata.name }}-tenant-user-virt-extended
           clusterRole: acm-vm-extended:view
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
-        - name: {{ $tenant.metadata.name }}-tenant-user-namespace
-          clusterRole: tenant-ns:user
-          targetNamespaces:
-          - {{ $tenant.metadata.name }}
-          clusterSelection:
-            type: placements
-            placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
   {{- if $tenant.spec.viewerGroup }}
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.open-cluster-management.io/v1beta1
       kind: MulticlusterRoleAssignment
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-viewer-virt
-        namespace: policies
+        name: {{ $tenantName }}-tenant-viewer-virt
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
       spec:
         subject:
           kind: Group
@@ -94,29 +89,173 @@ object-templates-raw: |
         - name: {{ $tenant.metadata.name }}-tenant-viewer-virt-kubevirt
           clusterRole: kubevirt.io:view
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
         - name: {{ $tenant.metadata.name }}-tenant-viewer-virt-extended
           clusterRole: acm-vm-extended:view
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
+  {{- end }}
+  {{- end }}
+  {{- if or (eq $profile "containers") (eq $profile "both") }}
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-admin-namespace
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.adminGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-admin-namespace
+          clusterRole: tenant-ns:admin
+          targetNamespaces:
+          - {{ $workloadNs }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: tenancies-placement-managed-clusters
+              namespace: tenancies
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-user-namespace
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.userGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-user-namespace
+          clusterRole: tenant-ns:user
+          targetNamespaces:
+          - {{ $workloadNs }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: tenancies-placement-managed-clusters
+              namespace: tenancies
+  {{- if $tenant.spec.viewerGroup }}
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-viewer-namespace
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.viewerGroup }}
+        roleAssignments:
         - name: {{ $tenant.metadata.name }}-tenant-viewer-namespace
           clusterRole: tenant-ns:viewer
           targetNamespaces:
-          - {{ $tenant.metadata.name }}
+          - {{ $workloadNs }}
           clusterSelection:
             type: placements
             placements:
-            - name: policies-placement-managed-clusters
-              namespace: policies
+            - name: tenancies-placement-managed-clusters
+              namespace: tenancies
+  {{- end }}
+  {{- end }}
+  {{- if or (eq $profile "vms") (eq $profile "both") }}
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-admin-namespace-vm
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.adminGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-admin-namespace-vm
+          clusterRole: tenant-ns:admin
+          targetNamespaces:
+          - {{ $workloadNs }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-user-namespace-vm
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.userGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-user-namespace-vm
+          clusterRole: tenant-ns:user
+          targetNamespaces:
+          - {{ $workloadNs }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
+  {{- if $tenant.spec.viewerGroup }}
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: rbac.open-cluster-management.io/v1beta1
+      kind: MulticlusterRoleAssignment
+      metadata:
+        name: {{ $tenantName }}-tenant-viewer-namespace-vm
+        namespace: tenancies
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        subject:
+          kind: Group
+          name: {{ $tenant.spec.viewerGroup }}
+        roleAssignments:
+        - name: {{ $tenant.metadata.name }}-tenant-viewer-namespace-vm
+          clusterRole: tenant-ns:viewer
+          targetNamespaces:
+          - {{ $workloadNs }}
+          clusterSelection:
+            type: placements
+            placements:
+            - name: tenancies-placement-managed-vm-clusters
+              namespace: tenancies
+  {{- end }}
   {{- end }}
   {{- end }}

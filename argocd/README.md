@@ -13,7 +13,7 @@ the default `openshift-gitops` ArgoCD instance.
 | `application-tenancy-configuration-management.yaml` | Application | Syncs `policygen/CM-Configuration-Management` — Tenant namespaces, quotas, UDNs, MetalLB BGP |
 | `application-tenancy-system-and-communications-protection.yaml` | Application | Syncs `policygen/SC-System-and-Communications-Protection` — Tenant CRD deployment and CR replication |
 | `application-tenancy-placements.yaml` | Application | Syncs `placements/` — Placement rules referenced by generated policies |
-| `application-tenancy-base.yaml` | Application | Syncs `tenancies/` — Tenant CRs (source of truth for tenant definitions) |
+| `application-tenancy-base.yaml` | Application | Syncs empty `tenancies/` (`prune: false` — tenants via UI/examples) |
 | `apply.sh` | Script | Applies all ArgoCD resources, auto-setting `targetRevision` to the current git branch (see [TESTING-BRANCHES.md](TESTING-BRANCHES.md)) |
 
 ## PolicyGenerator plugin setup
@@ -61,12 +61,14 @@ oc apply -f argocd/application-tenancy-system-and-communications-protection.yaml
 
 | Application | Auto-sync | Prune | Self-heal |
 |---|---|---|---|
-| `tenancy-base` | Yes | Yes | Yes |
+| `tenancy-base` | Yes | **No** | Yes |
 | `tenancy-access-control` | Yes | No | No |
 | `tenancy-configuration-management` | Yes | Yes | Yes |
 | `tenancy-system-and-communications-protection` | Yes | Yes | Yes |
 | `tenancy-placements` | Yes | Yes | Yes |
 
-`tenancy-base` syncs the Tenant CRs. Pruning and self-heal are enabled so the tenant
-definitions stay enforced. Access Control has pruning and self-heal disabled to prevent
-accidental removal of RBAC bindings during policy refactoring.
+`tenancy-base` syncs `tenancies/` (empty kustomization). **Prune is off** so live
+Tenant CRs created via Create Tenant or `examples/apply-samples.sh` are not deleted.
+Do not put sample tenants in `tenancies/` unless you want Argo to own them.
+Access Control has pruning and self-heal disabled to prevent accidental removal
+of RBAC bindings during policy refactoring.

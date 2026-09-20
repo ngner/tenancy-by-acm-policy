@@ -46,6 +46,46 @@ spec:
                       type: array
                       items:
                         type: string
+                seedVm:
+                  type: object
+                  description: Status of automatic starter VM seeding (ManifestWork).
+                  properties:
+                    phase:
+                      type: string
+                      description: Pending, Ready, Partial, Skipped, Error, or Disabled.
+                    message:
+                      type: string
+                    cluster:
+                      type: string
+                      description: >-
+                        Legacy single-target cluster field (first target when multiple).
+                    vmName:
+                      type: string
+                    manifestWork:
+                      type: string
+                      description: >-
+                        Legacy single-target ManifestWork name (first target when multiple).
+                    printableStatus:
+                      type: string
+                      description: >-
+                        Legacy single-target VM status (first target when multiple).
+                    targets:
+                      type: array
+                      description: Per-cluster seed VM status when mode is all or selected.
+                      items:
+                        type: object
+                        properties:
+                          cluster:
+                            type: string
+                          manifestWork:
+                            type: string
+                          phase:
+                            type: string
+                            description: Pending, Ready, or Error for this cluster.
+                          printableStatus:
+                            type: string
+                          message:
+                            type: string
             spec:
               type: object
               required:
@@ -82,6 +122,128 @@ spec:
                     namespace, kubevirt.io:view on VMs, and
                     acm-vm-fleet:view on the hub console.
                     Default naming convention: {tenantname}-tenant-viewer.
+                workloadNamespace:
+                  type: string
+                  description: >-
+                    Namespace created on managed clusters for this tenant's
+                    workloads (quotas, UDN, VMs). Defaults to the tenant name
+                    when unset (e.g. starwars). Use {tenant}-ns for a suffix
+                    convention. Not used for workloadProfile clusters (CaaS);
+                    see clusterAsAService.hcpNamespace for the hub HCP namespace.
+
+                workloadProfile:
+                  type: string
+                  enum:
+                    - vms
+                    - containers
+                    - both
+                    - clusters
+                  default: vms
+                  description: >-
+                    Workloads to provision for this tenant. vms — VM/Fleet
+                    Virtualization (default); containers — application workloads;
+                    both — VM and container resources on capable clusters;
+                    clusters — Cluster-as-a-Service (HCP on the hub; no spoke VM
+                    quotas or virt MCRAs).
+
+                # -----------------------------------------------------------
+                # Cluster-as-a-Service (workloadProfile: clusters)
+                # -----------------------------------------------------------
+                clusterAsAService:
+                  type: object
+                  description: >-
+                    Options for Cluster-as-a-Service tenants (workloadProfile
+                    clusters). Hub policies create the HCP control-plane
+                    namespace; HostedCluster automation is a follow-on.
+                  properties:
+                    hcpNamespace:
+                      type: string
+                      description: >-
+                        Hub namespace for this tenant's hosted control plane(s).
+                        Defaults to {tenant}-hcp when unset.
+                    hubResourceQuota:
+                      type: object
+                      description: >-
+                        ResourceQuota applied to the hub HCP namespace so
+                        control-plane pods cannot unbounded-consume the hub.
+                        Defaults sized for one HA hosted control plane
+                        (~5.5 CPU / ~19Gi / ~78 pods plus headroom).
+                      properties:
+                        cpu:
+                          type: string
+                          default: "12"
+                        memory:
+                          type: string
+                          default: "32Gi"
+                        pods:
+                          type: string
+                          default: "150"
+
+                # -----------------------------------------------------------
+                # Optional starter VM (hub ManifestWork reconciler)
+                # -----------------------------------------------------------
+                seedStarterVm:
+                  type: object
+                  description: >-
+                    When enabled (default for vms/both), the hub VM-seed
+                    reconciler creates a ManifestWork with a RHEL9 starter VM
+                    on a managed cluster with tenancy.acm.io/capability-vm.
+                    Workshop / demo use — not required for production tenants.
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: true
+                      description: >-
+                        Create a starter VM for this tenant. Defaults to true
+                        for vms/both when omitted; set false to opt out.
+                        Ignored when workloadProfile is containers or clusters.
+                    mode:
+                      type: string
+                      enum:
+                        - single
+                        - all
+                        - selected
+                      default: single
+                      description: >-
+                        Seed targeting mode. single — one cluster (cluster field
+                        or resolver fallback); all — every VM-capable managed
+                        cluster; selected — clusters matching zones and/or
+                        explicit clusters list.
+                    cluster:
+                      type: string
+                      description: >-
+                        Target managed cluster when mode is single. Defaults to
+                        the first Available cluster labelled
+                        tenancy.acm.io/capability-vm=true.
+                    zones:
+                      type: array
+                      description: >-
+                        Zone labels (tenancy.acm.io/zone) to seed when mode is
+                        selected. Unioned with clusters when both are set.
+                      items:
+                        type: string
+                    clusters:
+                      type: array
+                      description: >-
+                        Explicit managed cluster names to seed when mode is
+                        selected. Unioned with zones when both are set.
+                      items:
+                        type: string
+                    vmName:
+                      type: string
+                      description: VirtualMachine name. Defaults to {tenant}-starter.
+                    cpu:
+                      type: string
+                      default: "1"
+                      description: Guest CPU cores for the starter VM.
+                    memory:
+                      type: string
+                      default: "2Gi"
+                      description: Guest memory request for the starter VM.
+                    disk:
+                      type: string
+                      default: "30Gi"
+                      description: Root disk size for the starter VM DataVolume.
 
                 # -----------------------------------------------------------
                 # Optional console SSO (OpenShift OAuth IdP)
@@ -147,6 +309,18 @@ spec:
                           description: >-
                             When manageRealm is true, create admin@/user@/viewer@ demo users.
                             Workshop use only — not for production.
+                        seedPassword:
+                          type: string
+                          default: HugAPug2026!
+                          description: >-
+                            Initial password for seed users when seedUsers is true.
+                            Stored in plain text on the Tenant CR — workshop use only.
+                        requirePasswordChange:
+                          type: boolean
+                          default: false
+                          description: >-
+                            When true, seed users must change password on first login
+                            (Keycloak temporary credential).
                         loginTheme:
                           type: string
                           description: >-
@@ -242,9 +416,11 @@ spec:
                   properties:
                     udnSubnet:
                       type: string
+                      default: "10.128.0.0/16"
                       description: >-
-                        CIDR for the tenant's primary UDN. May overlap other
-                        tenants — each UDN is a fully isolated logical network.
+                        CIDR for the tenant's primary UDN. Defaults to 10.128.0.0/16 when
+                        omitted. May overlap other tenants — each UDN is a fully isolated
+                        logical network.
                     metallb:
                       type: object
                       description: >-
@@ -279,6 +455,9 @@ spec:
         - name: User Group
           type: string
           jsonPath: .spec.userGroup
+        - name: Workload
+          type: string
+          jsonPath: .spec.workloadProfile
         - name: Viewer Group
           type: string
           jsonPath: .spec.viewerGroup

@@ -1,124 +1,82 @@
-# Keycloak Realm Policy — Future Work
+# Keycloak / identity — status and future work
 
-## Extend Tenant CRD with `keycloak` section
+## Completed
 
-Add optional per-tenant overrides to the Tenant CRD:
+### Tenant CRD `spec.identity` (replaces standalone `keycloak` section)
 
-- `keycloak.enabled` (boolean) — opt out of realm creation for specific tenants
-- `keycloak.namespace` (string) — target a different Keycloak instance namespace
-- `keycloak.instanceName` (string) — reference a Keycloak CR other than `main`
-- `keycloak.redirectUris` (array) — explicit OAuth callback URLs per tenant
-- `keycloak.seedAdmin.enabled` (boolean) — disable seed user creation
+Implemented on the Tenant CRD and Create Tenant form:
 
-This would allow multiple Keycloak instances serving different sets of tenants
-and per-tenant opt-out without removing the Tenant CR.
+| Original idea | Implemented as |
+|---------------|----------------|
+| Opt in/out of SSO | `spec.identity.enabled` |
+| Keycloak namespace / instance | `spec.identity.keycloak.namespace`, `instanceName` |
+| Opt out of realm creation | `spec.identity.keycloak.manageRealm` (false = existing realm only) |
+| Disable seed users | `spec.identity.keycloak.seedUsers` |
+| External OIDC | `spec.identity.provider: oidc` + `spec.identity.oidc` |
+| Console IdP name, client ID, secret ref | `consoleLoginName`, `clientId`, `clientSecretRef` |
+| Seed password + force change | `seedPassword`, `requirePasswordChange` |
+| Demo login theme | `loginTheme` (when `manageRealm: true`) |
 
-## Client secret management — DONE (static secret)
+Not implemented: explicit `redirectUris` array (redirects are derived from Ingress domain + IdP name).
 
-A static client secret and proper redirect URI are now set on each
-`openshift-{tenant}` client in `realm-import-from-crd.yaml`. The redirect URI
-is derived from an Ingress config `lookup` at policy evaluation time.
+### Group mapper — DONE
 
-### Replacing the hardcoded secret with a `lookup`
+`oidc-group-membership-mapper` on each `openshift-{tenant}` client in `realm-import-from-crd.yaml`.
 
-The static secret should be replaced with a dynamic `lookup` once the
-per-tenant Secrets exist in `openshift-config`. The approach:
+### OAuth IdP registration — DONE (reconciler, not policy)
 
-1. Create a new template (e.g., `client-secret-from-crd.yaml`) that iterates
-   Tenant CRs and emits a Secret per tenant in `openshift-config`:
+`identity-reconciler.yaml` CronJob patches `oauth/cluster` to add/update per-tenant OpenID IdPs, merges into the singleton (does not replace the list). Orphan IdPs and client secrets are removed when the Tenant CR is deleted. When `spec.identity.enabled` is false, the reconciler removes the IdP and client secret (and platform-managed Keycloak realms when `manageRealm` was true).
 
-   ```yaml
-   object-templates-raw: |
-     {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
-     {{- $name := $tenant.metadata.name }}
-     - complianceType: musthave
-       objectDefinition:
-         apiVersion: v1
-         kind: Secret
-         metadata:
-           name: {{ $name }}-client-secret
-           namespace: openshift-config
-         type: Opaque
-         stringData:
-           clientSecret: <generated-or-vault-sourced-value>
-     {{- end }}
-   ```
+### Client secret lookup in realm import — DONE (with fallback)
 
-2. In `realm-import-from-crd.yaml`, replace the hardcoded `secret:` line with
-   a `lookup` of that Secret:
+`realm-import-from-crd.yaml` reads `clientSecretRef` (default `openshift-config/{tenant}-client-secret`) via `lookup`. A static fallback remains if the Secret is missing (workshop default).
 
-   ```yaml
-   {{- $clientSecret := (lookup "v1" "Secret" "openshift-config" (printf "%s-client-secret" $name)).data.clientSecret | base64dec }}
-   ...
-   secret: '{{ $clientSecret }}'
-   ```
+Create Tenant form provisions the Secret in `openshift-config`.
 
-3. Add a policy dependency so the Keycloak realm import waits for the Secrets
-   to exist before evaluating.
+### Realm lifecycle — DONE
 
-This removes the hardcoded secret from git and keeps the Keycloak client
-secret in sync with the OpenShift OAuth configuration. It also eliminates
-the `.gitleaks.toml` allowlist entry.
+| Concern | Mechanism |
+|---------|-----------|
+| `KeycloakRealmImport` prune | `pruneObjectBehavior: DeleteAll` on `tenancy-hub-keycloak-realms` |
+| Orphan import CRs | Identity reconciler |
+| OAuth IdP + client secret | Identity reconciler |
+| Keycloak DB realm | Identity reconciler Admin API sweep |
 
-### Remaining production hardening
+### Hub fleet RBAC on tenant delete — known issue (documented)
 
-- Generate or reference per-tenant OIDC client secrets via SealedSecrets,
-  External Secrets Operator, or HashiCorp Vault.
-- Create the corresponding `Secret` in `openshift-config` for each tenant so
-  the OpenShift OAuth server can complete the IdP handshake.
+MCRAs and `acm-vm-fleet:view` ClusterRoleBindings are **not** auto-pruned (`tenancy-access-control` Argo app has `prune: false`). Manual cleanup or future `pruneObjectBehavior` on `tenancy-hub-console-and-vm-rbac`. Does **not** block delete + recreate with the same tenant name.
 
-## Seed admin password hardening
+See `docs/new-tenant.md` (tenant deletion table) and `keycloak/README.md`.
 
-The bootstrap users (`admin@`, `user@`, and optionally `viewer@` at
-`<tenant>.local`) currently share a demo password (`password`) with
-`temporary: false`. Stronger options:
+---
 
-- **Per-tenant Secret lookup** — template uses `lookup` to read a Secret named
-  `{tenant}-seed-credentials` from the Keycloak namespace and injects the
-  password value. Secrets are provisioned out-of-band via Vault or
-  SealedSecrets.
-- **One-time password generation** — integrate with Vault's password generator
-  to produce a unique bootstrap password per tenant.
-- **Disable seed user post-bootstrap** — a follow-up policy or CronJob that
-  disables or deletes the seed user after the tenant admin has created their
-  own account.
+## Open / future work
 
-## OAuth IdP auto-registration
+### Client secret hardening (production)
 
-Create a policy that patches `OAuth/cluster` to add a per-tenant IdP entry:
+- Remove the hardcoded fallback secret from `realm-import-from-crd.yaml` once all tenants use `clientSecretRef`.
+- Optional dedicated policy template to emit Secrets (only if not using the form / external provisioning).
+- Integrate SealedSecrets, External Secrets Operator, or Vault for secret generation and rotation.
+- Remove `.gitleaks.toml` allowlist entry when fallback is gone.
 
-```yaml
-- name: {tenant}-idp
-  type: OpenID
-  openID:
-    clientID: openshift-{tenant}
-    clientSecret:
-      name: {tenant}-client-secret
-    issuer: https://<keycloak-route>/realms/{tenant}
-    claims:
-      groups: [groups]
-      preferredUsername: [preferred_username]
-      name: [name]
-      email: [email]
-```
+### Seed user hardening (production)
 
-This is complex because the `OAuth/cluster` resource is a singleton — the
-policy must merge IdP entries rather than replace the list. Consider using
-`musthave` with a partial object or a server-side apply strategy.
+Current: `seedPassword` on the Tenant CR (workshop only) and `requirePasswordChange`.
 
-## Group mapper automation — DONE
+Future options:
 
-An `oidc-group-membership-mapper` protocol mapper is now defined directly on
-each `openshift-{tenant}` client in `realm-import-from-crd.yaml`. The mapper
-emits a `groups` claim with `full.path: false` into ID, access, and userinfo
-tokens.
+- Per-tenant Secret lookup for bootstrap credentials (out-of-band Vault / SealedSecrets).
+- One-time password generation via Vault.
+- Post-bootstrap CronJob to disable or delete seed users.
 
-## Realm lifecycle
+### Explicit OAuth redirect URIs
 
-- **Tenant deletion:** `tenancy-hub-keycloak-realms` sets `pruneObjectBehavior: DeleteAll` so
-  `KeycloakRealmImport` CRs are removed when the Tenant CR is deleted. The identity reconciler
-  CronJob also removes orphan imports, OAuth IdPs (`openshift-{tenant}` clients), and default
-  client secrets.
-- **Keycloak DB:** Realm import is additive — the RHBK Operator does not remove groups, roles,
-  or users from the database when the import CR is deleted. Use the Keycloak Admin API for
-  strict DB cleanup if required.
+Add `spec.identity.redirectUris` (or `keycloak.redirectUris`) for non-standard console URLs or multi-cluster hubs. Today redirects are built from Ingress domain lookup.
+
+### Custom CSS themes
+
+Remain **outside** production policy — use `apply-themes.sh` in demo-setups. Not planned for PolicyGenerator.
+
+### Optional demo-only franchise realms
+
+`argocd/application-tenancy-sc-hub-demo.yaml` for theme-only tenants without `spec.identity` (starwars, startrek, etc.). Workshop use only.

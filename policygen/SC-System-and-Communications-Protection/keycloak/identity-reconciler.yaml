@@ -68,6 +68,103 @@ data:
       oc patch tenant "$name" -n "$ns" --subresource=status --type=merge -p "$payload" 2>/dev/null || true
     }
 
+    KEYCLOAK_SYSTEM_NS="${KEYCLOAK_SYSTEM_NS:-keycloak-system}"
+
+    keycloak_admin_token() {
+      local kc_ns=$1 user pass host response
+      kc_ns="${kc_ns:-$KEYCLOAK_SYSTEM_NS}"
+      user=$(oc get secret keycloak-db-secret -n "$kc_ns" -o jsonpath='{.data.username}' 2>/dev/null | base64 -d)
+      pass=$(oc get secret keycloak-db-secret -n "$kc_ns" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
+      host=$(oc get route keycloak -n "$kc_ns" -o jsonpath='{.spec.host}' 2>/dev/null)
+      [ -z "$user" ] || [ -z "$pass" ] || [ -z "$host" ] && return 1
+      response=$(curl -sk -X POST "https://${host}/realms/master/protocol/openid-connect/token" \
+        -d "client_id=admin-cli" -d "username=${user}" -d "password=${pass}" -d "grant_type=password")
+      echo "$response" | jq -r '.access_token // empty'
+    }
+
+    delete_keycloak_db_realm() {
+      local realm=$1 kc_ns=$2 token host code
+      kc_ns="${kc_ns:-$KEYCLOAK_SYSTEM_NS}"
+      [ "$realm" = "master" ] && return 0
+      host=$(oc get route keycloak -n "$kc_ns" -o jsonpath='{.spec.host}' 2>/dev/null)
+      token=$(keycloak_admin_token "$kc_ns" || true)
+      if [ -z "$token" ] || [ -z "$host" ]; then
+        echo "Could not reach Keycloak admin API; skipping DB delete for realm ${realm}"
+        return 0
+      fi
+      code=$(curl -sk -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" "https://${host}/admin/realms/${realm}")
+      if [ "$code" = "200" ]; then
+        echo "Deleting stale Keycloak DB realm: ${realm}"
+        curl -sk -o /dev/null -X DELETE -H "Authorization: Bearer $token" "https://${host}/admin/realms/${realm}"
+      fi
+    }
+
+    # Remove openshift-{tenant} IdP from oauth/cluster. Returns 0 if removed or absent.
+    remove_oauth_idp_for_tenant() {
+      local tenant=$1
+      local oauth_json count idx cid idp_name removed
+      oauth_json=$(oc get oauth cluster -o json)
+      count=$(echo "$oauth_json" | jq '.spec.identityProviders | length')
+      removed=0
+      idx=$((count - 1))
+      while [ "$idx" -ge 0 ]; do
+        cid=$(echo "$oauth_json" | jq -r ".spec.identityProviders[$idx].openID.clientID // empty")
+        idp_name=$(echo "$oauth_json" | jq -r ".spec.identityProviders[$idx].name // empty")
+        if [ -n "$cid" ] && [ "$cid" = "openshift-${tenant}" ]; then
+          echo "Removing IdP ${idp_name} (client ${cid}, tenant ${tenant})"
+          if oc patch oauth cluster --type=json -p="[{\"op\":\"remove\",\"path\":\"/spec/identityProviders/${idx}\"}]"; then
+            removed=1
+            oauth_json=$(oc get oauth cluster -o json)
+          fi
+        fi
+        idx=$((idx - 1))
+      done
+      return 0
+    }
+
+    delete_tenant_client_secret() {
+      local tenant=$1
+      local identity_json="${2-}"
+      local secret_ns secret_name
+      if [ -z "$identity_json" ]; then
+        identity_json='{}'
+      fi
+      secret_ns=$(echo "$identity_json" | jq -r '.clientSecretRef.namespace // "openshift-config"')
+      secret_name=$(echo "$identity_json" | jq -r ".clientSecretRef.name // \"${tenant}-client-secret\"")
+      if oc get secret "$secret_name" -n "$secret_ns" &>/dev/null; then
+        echo "Deleting client secret ${secret_ns}/${secret_name}"
+        oc delete secret "$secret_name" -n "$secret_ns"
+      fi
+    }
+
+    # Tear down IdP, client secret, and platform-managed Keycloak realm when SSO is disabled.
+    # Do not delete keycloak-theme-* ConfigMaps or Keycloak CR volume mounts. Those
+    # are installed once by apply-themes.sh and must survive tenant delete/recreate.
+    cleanup_disabled_tenant_identity() {
+      local name=$1 ns=$2
+      local identity_json="${3-}"
+      local manage_realm kc_ns realm import_ns import_name
+      if [ -z "$identity_json" ]; then
+        identity_json=$(oc get tenant "$name" -n "$ns" -o json | jq -c '.spec.identity // {}')
+      fi
+      echo "SSO disabled for tenant ${name}; cleaning up identity resources"
+      remove_oauth_idp_for_tenant "$name"
+      delete_tenant_client_secret "$name" "$identity_json"
+      manage_realm=$(echo "$identity_json" | jq -r '.keycloak.manageRealm // false')
+      if [ "$manage_realm" = "true" ]; then
+        kc_ns=$(echo "$identity_json" | jq -r '.keycloak.namespace // "keycloak-system"')
+        realm=$(echo "$identity_json" | jq -r ".keycloak.realm // \"${name}\"")
+        import_ns="$kc_ns"
+        import_name="${name}-realm-import"
+        if oc get keycloakrealmimport "$import_name" -n "$import_ns" &>/dev/null; then
+          echo "Deleting KeycloakRealmImport ${import_ns}/${import_name}"
+          oc delete keycloakrealmimport "$import_name" -n "$import_ns" --ignore-not-found
+        fi
+        delete_keycloak_db_realm "$realm" "$kc_ns"
+      fi
+      patch_status "$ns" "$name" '{"status":{"identity":{"phase":"Disabled","message":"Console SSO disabled; IdP and client secret removed"}}}'
+    }
+
     # Remove OpenShift OAuth IdPs and client secrets for tenants whose CR was deleted.
     # Matches IdPs created by this reconciler (openID clientID openshift-{tenant}).
     cleanup_orphan_identity_providers() {
@@ -87,10 +184,8 @@ data:
             if oc patch oauth cluster --type=json -p="[{\"op\":\"remove\",\"path\":\"/spec/identityProviders/${idx}\"}]"; then
               removed=$((removed + 1))
               oauth_json=$(oc get oauth cluster -o json)
-              if oc get secret "${tenant}-client-secret" -n openshift-config &>/dev/null; then
-                echo "Deleting orphan secret openshift-config/${tenant}-client-secret"
-                oc delete secret "${tenant}-client-secret" -n openshift-config
-              fi
+              delete_tenant_client_secret "$tenant" '{}'
+              delete_keycloak_db_realm "$tenant"
             fi
           fi
         fi
@@ -113,8 +208,35 @@ data:
         if ! oc get tenant "$tenant" -n tenancies &>/dev/null; then
           echo "Deleting orphan KeycloakRealmImport ${ns}/${name}"
           oc delete keycloakrealmimport "$name" -n "$ns" --ignore-not-found
+          delete_keycloak_db_realm "$tenant" "$ns"
         fi
       done < <(oc get keycloakrealmimport -A -o json 2>/dev/null | jq -c '.items[]?')
+    }
+
+    # RHBK does not remove realms from the database when the import CR is pruned.
+    cleanup_orphan_keycloak_db_realms() {
+      local kc_ns token host realms_json realm tenant_names import_names
+      kc_ns="$KEYCLOAK_SYSTEM_NS"
+      host=$(oc get route keycloak -n "$kc_ns" -o jsonpath='{.spec.host}' 2>/dev/null || true)
+      token=$(keycloak_admin_token "$kc_ns" || true)
+      if [ -z "$host" ] || [ -z "$token" ]; then
+        echo "Skipping Keycloak DB realm sweep (admin API unavailable)"
+        return 0
+      fi
+      tenant_names=$(oc get tenants.dusty-seahorse.io -n tenancies -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+      import_names=$(oc get keycloakrealmimport -A -o json 2>/dev/null | jq -r '.items[]? | .metadata.name' || true)
+      realms_json=$(curl -sk -H "Authorization: Bearer $token" "https://${host}/admin/realms")
+      echo "$realms_json" | jq -c '.[]?' | while read -r entry; do
+        realm=$(echo "$entry" | jq -r '.realm // empty')
+        [ -z "$realm" ] || [ "$realm" = "master" ] && continue
+        if echo "$tenant_names" | grep -qx "$realm"; then
+          continue
+        fi
+        if echo "$import_names" | grep -qx "${realm}-realm-import"; then
+          continue
+        fi
+        delete_keycloak_db_realm "$realm" "$kc_ns"
+      done
     }
 
     DOMAIN=$(oc get ingresses.config cluster -o jsonpath='{.spec.domain}')
@@ -124,7 +246,11 @@ data:
       NAME=$(echo "$tenant" | jq -r '.metadata.name')
       NS=$(echo "$tenant" | jq -r '.metadata.namespace')
       IDENTITY=$(echo "$tenant" | jq -c '.spec.identity // empty')
-      if [ -z "$IDENTITY" ] || [ "$(echo "$IDENTITY" | jq -r '.enabled // false')" != "true" ]; then
+      if [ -z "$IDENTITY" ]; then
+        continue
+      fi
+      if [ "$(echo "$IDENTITY" | jq -r '.enabled // false')" != "true" ]; then
+        cleanup_disabled_tenant_identity "$NAME" "$NS" "$IDENTITY"
         continue
       fi
 
@@ -212,6 +338,7 @@ data:
 
     cleanup_orphan_identity_providers
     cleanup_orphan_realm_imports
+    cleanup_orphan_keycloak_db_realms
 ---
 apiVersion: batch/v1
 kind: CronJob

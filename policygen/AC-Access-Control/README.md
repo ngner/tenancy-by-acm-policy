@@ -8,7 +8,7 @@ on both the ACM hub and managed clusters.
 
 ### policygenerator-hub.yaml
 
-Targets the hub cluster (`policies-placement-hub-clusters`) and creates ACM fine-grained
+Targets the hub cluster (`tenancies-placement-hub-clusters`) and creates ACM fine-grained
 RBAC resources directly from Tenant CRs:
 
 - **ClusterRoleBindings** granting `acm-vm-fleet:view` to all three tenant groups
@@ -19,15 +19,18 @@ RBAC resources directly from Tenant CRs:
   `acm-vm-extended:{admin,view}` roles scoped to the tenant namespace on managed
   clusters. These are ACM fine-grained RBAC resources evaluated on the hub and
   propagated to matching clusters.
+- **RoleBindings** in `tenancies` for portal markers (`portal-vmaas`, `portal-developer`)
+  that gate VMaaS and Developer perspectives per `spec.workloadProfile`. See
+  [docs/tenant-console-portal.md](../../docs/tenant-console-portal.md).
 
 ### policygenerator-managed.yaml
 
-Targets managed clusters (`policies-placement-managed-clusters`) and creates:
+Targets managed clusters (`tenancies-placement-managed-clusters`) and creates:
 
 - **RoleBindings** in each tenant namespace granting `admin` to the Tenant-Admin
   group, `edit` to the Tenant-User group, and `view` to the Tenant-Viewer group.
 
-This policy depends on `tenancy-managed-tenant-replication` (tenancies namespace) being Compliant,
+This policy depends on `tenancy-managed-tenant-foundation` (tenancies namespace) being Compliant,
 which ensures the Tenant CRD and replicated Tenant CRs are present before RoleBindings
 are created. Managed-cluster policies iterate the local Tenant CRs directly using
 `{{ range }}` and `lookup`.

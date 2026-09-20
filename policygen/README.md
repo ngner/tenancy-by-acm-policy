@@ -11,7 +11,7 @@ policygen/
 ├── AC-Access-Control/               Access enforcement (AC-3)
 │   ├── kustomization.yaml           Registers policygenerator-*.yaml as kustomize generators
 │   ├── policygenerator-hub.yaml     Hub-side fine-grained RBAC: ClusterRoleBindings + MulticlusterRoleAssignments
-│   ├── policygenerator-managed.yaml Managed cluster RoleBindings (depends on tenancy-managed-tenant-replication)
+│   ├── policygenerator-managed.yaml Managed cluster ClusterRoles (depends on tenancy-managed-tenant-foundation)
 │   ├── acm-finegrained-rbac/        object-templates-raw: ClusterRoleBindings, MCRAs
 │   └── rbac/                        object-templates-raw: managed cluster RoleBindings from Tenant CRs
 │

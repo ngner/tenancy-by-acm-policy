@@ -83,24 +83,40 @@ Update the ACM subscription image tag in `argocd/openshift-gitops-policygen.yaml
 Two sets of placements control which clusters receive policies:
 
 - **`placements/policies/`** (namespace `policies`) — hub and managed-cluster placements used by AC and CM PolicyGenerators.
-- **`placements/tenancies/`** (namespace `tenancies`) — placement for the Tenant CR replication policy, with its own `ManagedClusterSetBinding`. This separation allows multiple `tenancies-*` namespaces with different cluster-set bindings.
+- **`placements/tenancies/`** (namespace `tenancies`) — placement for the Tenant CR replication policy.
 
-The default managed-cluster placement selects **every managed cluster except the hub** (`local-cluster`). To switch strategies, change which file is active in `placements/policies/kustomization.yaml`:
+The default managed-cluster placement selects spokes labelled with a **tenant capability** (see [placements/capabilities/README.md](placements/capabilities/README.md)):
+
+| Label | Meaning |
+|-------|---------|
+| `tenancy.acm.io/capability-container=true` | Container / application tenant workloads |
+| `tenancy.acm.io/capability-vm=true` | OpenShift Virtualization (VM tenants, kubevirt MCRAs) |
+
+A cluster with **either** label is included (OR). Dual-capability clusters carry **both** labels. Clusters with **neither** label are excluded.
+
+```bash
+oc label managedcluster aws-us tenancy.acm.io/capability-container=true --overwrite
+oc label managedcluster virtualisation-cluster \
+  tenancy.acm.io/capability-container=true tenancy.acm.io/capability-vm=true --overwrite
+```
+
+Legacy placement strategies remain in `placements/policies/kustomization.yaml`:
 
 ```yaml
-resources:
-  - placement-hub.yaml
-  # Managed-cluster placement — uncomment ONE:
-  - placement-managed.yaml                         # All non-hub clusters (default)
-  # - placement-managed-by-clusterset.yaml  # Specific ManagedClusterSet
-  # - placement-managed-by-label.yaml       # Opt-in by label
+  - placement-managed-by-capability.yaml              # capability labels (default)
+  - placement-managed-vm-capability.yaml              # VM-only (MCRA kubevirt roles)
+  # - placement-managed.yaml                         # All non-hub clusters (legacy)
+  # - placement-managed-by-clusterset.yaml           # ManagedClusterSet
+  # - placement-managed-by-label.yaml                # tenant-eligible=true
 ```
 
 | File | Selects | When to use |
 |---|---|---|
-| `placement-managed.yaml` | Every cluster except `local-cluster`, any cluster set | Simplest — all spoke clusters get tenancy |
-| `placement-managed-by-clusterset.yaml` | All clusters in a named `ManagedClusterSet` | You organise clusters into sets (`default`, `production`, etc.) |
-| `placement-managed-by-label.yaml` | Clusters matching a label selector | Opt-in model — label a cluster `tenant-eligible=true` to include it |
+| `placement-managed-by-capability.yaml` | `capability-container` **or** `capability-vm` | **Default** — opt-in per spoke capability |
+| `placement-managed-vm-capability.yaml` | `capability-vm` only | VM MCRAs (referenced from hub templates) |
+| `placement-managed.yaml` | Every cluster except `local-cluster` | Legacy |
+| `placement-managed-by-clusterset.yaml` | Named `ManagedClusterSet` | Fleet set membership |
+| `placement-managed-by-label.yaml` | `tenant-eligible=true` | Simple opt-in |
 
 The hub placement (`placements/policies/placement-hub.yaml`) is fixed to `local-cluster` and normally does not need changing.
 
@@ -110,6 +126,7 @@ The hub placement (`placements/policies/placement-hub.yaml`) is fixed to `local-
 ## Further reading
 
 - [Tenancy model](docs/tenancy-model.md) — personas, namespace/RBAC/UDN isolation layers, MetalLB BGP external connectivity, ACM VM console access, and VMware vCloud Director equivalents
+- [Placements cheat sheet](docs/placements-cheatsheet.md) — Argo apps, PolicySets, placements, and workload profile mapping
 - [Creating a new tenant](docs/new-tenant.md) — step-by-step with all configurable options (see [§1.2 ResourceQuota vs AAQ vs LimitRange](docs/new-tenant.md#12-resourcequota-vs-applicationawareresourcequota-vs-limitrange))
 
 ---

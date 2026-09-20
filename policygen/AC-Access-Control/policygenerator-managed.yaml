@@ -10,7 +10,7 @@ policyDefaults:
     - AC Access Control
   controls:
     - Enforce Tenant Access
-  namespace: policies
+  namespace: tenancies
   policySets:
     - tenancy-managed-access-control
   remediationAction: enforce
@@ -22,6 +22,9 @@ policyDefaults:
 
 policies:
   - name: tenancy-managed-custom-clusterroles
+    description: >-
+      Influences all spokes: tenant-ns admin/user/viewer ClusterRoles bound to
+      tenant groups via hub MulticlusterRoleAssignments.
     controls:
       - Deploy Tenant Least-Privilege ClusterRoles for Tenant Namespaces
     complianceType: musthave
@@ -30,6 +33,6 @@ policies:
 
 policySets:
   - name: tenancy-managed-access-control
-    description: Managed cluster least-privilege ClusterRoles for tenant namespace access (bound via MCRA from hub)
+    description: Spoke-side least-privilege ClusterRoles consumed by hub-driven tenant RBAC.
     placement:
-      placementName: policies-placement-managed-clusters
+      placementName: tenancies-placement-managed-clusters

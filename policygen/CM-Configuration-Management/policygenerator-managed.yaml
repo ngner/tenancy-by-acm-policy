@@ -12,7 +12,7 @@ policyDefaults:
     - Multi-Tenant Isolation
   controls:
     - Provision Tenant Resources
-  namespace: policies
+  namespace: tenancies
   policySets:
     - tenancy-managed-configuration
   remediationAction: enforce
@@ -22,17 +22,22 @@ policyDefaults:
 
 policies:
   - name: tenancy-managed-admin-network-policy
+    description: >-
+      Influences all spokes: baseline AdminNetworkPolicy that blocks
+      cross-tenant namespace traffic.
     controls:
       - Deploy Tenant admin network policy
     manifests:
       - path: network-policy/admin-network-policy.yaml
 
   - name: tenancy-managed-namespaces
+    description: >-
+      Influences container-capable spokes: tenant workload namespaces for
+      containers and both workload profiles.
     controls:
       - Deploy Tenant Namespaces
     dependencies:
-      - name: tenancy-managed-tenant-replication
-        namespace: tenancies
+      - name: tenancy-managed-tenant-foundation
         compliance: Compliant
     manifests:
       - path: namespace/namespaces-from-crd.yaml
@@ -45,6 +50,9 @@ policies:
   #   complianceType: musthave
 
   - name: tenancy-managed-quotas
+    description: >-
+      Influences container-capable spokes: per-tenant ResourceQuota and
+      LimitRange in tenant namespaces.
     controls:
       - Deploy Tenant Resource Quotas
     dependencies:
@@ -56,6 +64,9 @@ policies:
       - path: quota/quotas-from-crd.yaml
 
   - name: tenancy-managed-udn-network
+    description: >-
+      Influences container-capable spokes: per-tenant UserDefinedNetwork for
+      primary network isolation (OVN).
     controls:
       - Deploy Tenant Networks via UDN
     dependencies:
@@ -65,6 +76,9 @@ policies:
       - path: network/udn-from-crd.yaml
 
   - name: tenancy-managed-metallb-bgp
+    description: >-
+      Influences container-capable spokes: MetalLB BGP peer, IP pool, and
+      advertisements for tenant external connectivity.
     controls:
       - Deploy Tenant External Connectivity via BGP
     dependencies:
@@ -75,8 +89,74 @@ policies:
       - path: metallb/ip-address-pool-from-crd.yaml
       - path: metallb/bgp-advertisement-from-crd.yaml
 
+  - name: tenancy-managed-vm-namespaces
+    description: >-
+      Influences VM-capable spokes: tenant workload namespaces for vms and both
+      workload profiles.
+    controls:
+      - Deploy Tenant Namespaces on VM clusters
+    policySets:
+      - tenancy-managed-vm-configuration
+    dependencies:
+      - name: tenancy-managed-tenant-foundation
+        compliance: Compliant
+    manifests:
+      - path: namespace/namespaces-from-crd-vm.yaml
+
+  - name: tenancy-managed-vm-quotas
+    description: >-
+      Influences VM-capable spokes: ResourceQuota, LimitRange, and
+      ApplicationAwareResourceQuota (VM CPU/memory limits).
+    controls:
+      - Deploy Tenant VM Resource Quotas
+    policySets:
+      - tenancy-managed-vm-configuration
+    dependencies:
+      - name: tenancy-managed-vm-namespaces
+        compliance: Compliant
+    manifests:
+      - path: quota/quotas-from-crd-vm.yaml
+
+  - name: tenancy-managed-vm-udn-network
+    description: >-
+      Influences VM-capable spokes: per-tenant UserDefinedNetwork for VM primary
+      network isolation.
+    controls:
+      - Deploy Tenant Networks via UDN on VM clusters
+    policySets:
+      - tenancy-managed-vm-configuration
+    dependencies:
+      - name: tenancy-managed-vm-namespaces
+        compliance: Compliant
+    manifests:
+      - path: network/udn-from-crd-vm.yaml
+
+  - name: tenancy-managed-vm-metallb-bgp
+    description: >-
+      Influences VM-capable spokes: MetalLB BGP peer, IP pool, and
+      advertisements for VM tenant external access.
+    controls:
+      - Deploy Tenant External Connectivity via BGP on VM clusters
+    policySets:
+      - tenancy-managed-vm-configuration
+    dependencies:
+      - name: tenancy-managed-vm-namespaces
+        compliance: Compliant
+    manifests:
+      - path: metallb/bgp-peer-from-crd-vm.yaml
+      - path: metallb/ip-address-pool-from-crd-vm.yaml
+      - path: metallb/bgp-advertisement-from-crd-vm.yaml
+
 policySets:
   - name: tenancy-managed-configuration
-    description: "Managed cluster tenant provisioning: namespaces, resource quotas, UDN network isolation, and MetalLB BGP external connectivity"
+    description: >-
+      Container-capable spokes: namespace, quotas, UDN, and MetalLB for
+      containers/both tenants.
     placement:
-      placementName: policies-placement-managed-clusters
+      placementName: tenancies-placement-managed-clusters
+  - name: tenancy-managed-vm-configuration
+    description: >-
+      VM-capable spokes: namespace, VM quotas (AAQ), UDN, and MetalLB for
+      vms/both tenants.
+    placement:
+      placementName: tenancies-placement-managed-vm-clusters

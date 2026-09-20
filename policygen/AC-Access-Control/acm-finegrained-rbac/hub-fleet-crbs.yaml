@@ -1,11 +1,17 @@
 object-templates-raw: |
   {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $profile := $tenant.spec.workloadProfile | default "vms" }}
+  {{- if or (eq $profile "vms") (eq $profile "both") }}
+  {{- $tenantName := $tenant.metadata.name }}
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-admin-acm-fleet
+        name: {{ $tenantName }}-tenant-admin-acm-fleet
+        labels:
+          tenant: {{ $tenantName | quote }}
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -15,11 +21,14 @@ object-templates-raw: |
           apiGroup: rbac.authorization.k8s.io
           name: {{ $tenant.spec.adminGroup }}
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-user-acm-fleet
+        name: {{ $tenantName }}-tenant-user-acm-fleet
+        labels:
+          tenant: {{ $tenantName | quote }}
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -30,11 +39,14 @@ object-templates-raw: |
           name: {{ $tenant.spec.userGroup }}
   {{- if $tenant.spec.viewerGroup }}
   - complianceType: mustonlyhave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: rbac.authorization.k8s.io/v1
       kind: ClusterRoleBinding
       metadata:
-        name: {{ $tenant.metadata.name }}-tenant-viewer-acm-fleet
+        name: {{ $tenantName }}-tenant-viewer-acm-fleet
+        labels:
+          tenant: {{ $tenantName | quote }}
       roleRef:
         apiGroup: rbac.authorization.k8s.io
         kind: ClusterRole
@@ -43,5 +55,6 @@ object-templates-raw: |
         - kind: Group
           apiGroup: rbac.authorization.k8s.io
           name: {{ $tenant.spec.viewerGroup }}
+  {{- end }}
   {{- end }}
   {{- end }}

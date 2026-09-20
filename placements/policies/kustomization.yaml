@@ -4,10 +4,12 @@ kind: Kustomization
 namespace: policies
 resources:
   - placement-hub.yaml
-  # Managed-cluster placement — uncomment ONE of the following:
-  - placement-managed.yaml                         # All non-hub clusters (no clusterSet filter)
-  # - placement-managed-by-clusterset.yaml  # Specific ManagedClusterSet (edit clusterSets value)
-  # - placement-managed-by-label.yaml       # Opt-in by label (tenant-eligible=true)
+  - placement-managed-by-capability.yaml
+  - placement-managed-vm-capability.yaml
+  # Managed-cluster placement — uncomment ONE base strategy instead of capability default:
+  # - placement-managed.yaml                         # All non-hub clusters (legacy)
+  # - placement-managed-by-clusterset.yaml           # ManagedClusterSet membership
+  # - placement-managed-by-label.yaml                # Opt-in tenant-eligible=true
 
 commonAnnotations:
   argocd.argoproj.io/compare-options: IgnoreExtraneous

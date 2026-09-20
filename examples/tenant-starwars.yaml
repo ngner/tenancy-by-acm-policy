@@ -1,0 +1,82 @@
+# Star Wars sample tenant — SSO via hub Keycloak (not HTPasswd).
+#
+# Prerequisites (demo order):
+#   1. ./bin/apply acm-tenancy          # policies + Tenant CRD
+#   2. ./bin/apply acm-tenancy-keycloak # Keycloak in keycloak-system (Ready)
+#   3. oc apply -f this file
+#
+# After apply, ACM policy creates KeycloakRealmImport (manageRealm) and the
+# identity reconciler registers starwars-idp on oauth/cluster. Seed users:
+#   admin@starwars.local / user@starwars.local  (password: HugAPug2026!)
+#
+# Optional branding after the tenant exists:
+#   use-cases/acm-tenancy-keycloak/apply-themes.sh -t starwars
+#
+# Do NOT apply use-cases/acm-tenancy/10-tenant-groups.yaml for this path.
+# The HTPasswd OAuth file was removed. Groups come from Keycloak OIDC claims.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: starwars-client-secret
+  namespace: openshift-config
+  labels:
+    tenant: starwars
+    app.kubernetes.io/part-of: acm-tenancy
+type: Opaque
+stringData:
+  clientSecret: VDRjA2vWjJwlSZQ9tickuGkBQpiiJHdN
+---
+apiVersion: dusty-seahorse.io/v1alpha1
+kind: Tenant
+metadata:
+  name: starwars
+  namespace: tenancies
+  labels:
+    tenant: starwars
+spec:
+  displayName: "Star Wars"
+  owner: platform-team@example.com
+  adminGroup: starwars-tenant-admin
+  userGroup: starwars-tenant-user
+  viewerGroup: starwars-tenant-viewer
+  workloadProfile: vms
+  seedStarterVm:
+    enabled: true
+  resourceQuota:
+    cpu: "86"
+    memory: "332Gi"
+    pods: "15"
+    storage: "2000Gi"
+  vmQuota:
+    cpu: "80"
+    memory: "320Gi"
+  limitRange:
+    maxCpu: "32"
+    maxMemory: "128Gi"
+    maxStorage: "1Ti"
+  network:
+    udnSubnet: "10.0.1.0/24"
+    metallb:
+      myASN: 64500
+      peerASN: 64501
+      peerAddress: "192.168.1.1"
+      vrf: starwars-vrf
+      addresses:
+        - "192.168.11.0/24"
+  identity:
+    enabled: true
+    provider: keycloak
+    consoleLoginName: starwars-idp
+    clientId: openshift-starwars
+    clientSecretRef:
+      name: starwars-client-secret
+      namespace: openshift-config
+    keycloak:
+      namespace: keycloak-system
+      instanceName: main
+      realm: starwars
+      manageRealm: true
+      seedUsers: true
+      seedPassword: HugAPug2026!
+      requirePasswordChange: true

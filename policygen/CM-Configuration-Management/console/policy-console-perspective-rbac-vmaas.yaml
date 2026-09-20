@@ -1,0 +1,53 @@
+apiVersion: operator.openshift.io/v1
+kind: Console
+metadata:
+  name: cluster
+spec:
+  managementState: Managed
+  customization:
+    perspectives:
+      # Platform administrators
+      - id: admin
+        visibility:
+          accessReview:
+            required:
+              - group: config.openshift.io
+                resource: clusteroperators
+                verb: list
+          state: AccessReview
+
+      # Tenant container workloads — portal marker + not a platform admin
+      - id: dev
+        visibility:
+          accessReview:
+            missing:
+              - group: config.openshift.io
+                resource: clusteroperators
+                verb: list
+            required:
+              - group: ""
+                resource: configmaps
+                verb: get
+                namespace: tenancies
+                name: portal-developer
+          state: AccessReview
+
+      # Hub Virtualization — Enabled for demo testing (was platform-admin AccessReview)
+      - id: virtualization-perspective
+        visibility:
+          state: Enabled
+
+      # Fleet Management — platform operators only (tenants use VMaaS)
+      - id: acm
+        visibility:
+          accessReview:
+            required:
+              - group: config.openshift.io
+                resource: clusteroperators
+                verb: list
+          state: AccessReview
+
+      # VMaaS portal — Enabled for everyone during testing (not SAR-gated)
+      - id: vmaas
+        visibility:
+          state: Enabled

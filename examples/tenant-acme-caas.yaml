@@ -1,0 +1,45 @@
+---
+# Example Cluster-as-a-Service tenant (Hosted Control Plane on the hub).
+# Does not provision spoke VM namespaces, AAQ, virt MCRAs, or VMaaS portal bindings.
+# Hub policy creates namespace {tenant}-hcp with a modest ResourceQuota.
+#
+# Sibling VM tenancy (optional): create a second Tenant (e.g. acme-vms) and reuse
+# the same IdP/groups via manageRealm: false + shared consoleLoginName / groups
+# (form Slice C — see issue #4 on mandibuswell/tenancy-by-acm-policy).
+apiVersion: dusty-seahorse.io/v1alpha1
+kind: Tenant
+metadata:
+  name: acme-caas
+  namespace: tenancies
+  labels:
+    tenant: acme-caas
+spec:
+  displayName: "Acme Clusters"
+  owner: platform-team@example.com
+  adminGroup: acme-tenant-admin
+  userGroup: acme-tenant-user
+  viewerGroup: acme-tenant-viewer
+  workloadProfile: clusters
+  # Spoke VM/container quotas omitted — CaaS uses hub HCP quota below.
+  # Administrators may still set resourceQuota / vmQuota / limitRange if desired.
+  clusterAsAService:
+    # Defaults to acme-caas-hcp when omitted
+    # hcpNamespace: acme-caas-hcp
+    hubResourceQuota:
+      cpu: "12"
+      memory: "32Gi"
+      pods: "150"
+  identity:
+    enabled: true
+    provider: keycloak
+    consoleLoginName: acme-idp
+    clientId: openshift-acme
+    clientSecretRef:
+      name: acme-client-secret
+      namespace: openshift-config
+    keycloak:
+      namespace: keycloak-system
+      instanceName: main
+      realm: acme
+      manageRealm: true
+      seedUsers: true

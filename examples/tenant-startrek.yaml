@@ -1,0 +1,82 @@
+# Star Trek sample tenant — SSO via hub Keycloak (not HTPasswd).
+#
+# Prerequisites (demo order):
+#   1. ./bin/apply acm-tenancy          # policies + Tenant CRD
+#   2. ./bin/apply acm-tenancy-keycloak # Keycloak in keycloak-system (Ready)
+#   3. oc apply -f this file
+#
+# After apply, ACM policy creates KeycloakRealmImport (manageRealm) and the
+# identity reconciler registers startrek-idp on oauth/cluster. Seed users:
+#   admin@startrek.local / user@startrek.local  (password: HugAPug2026!)
+#
+# Optional branding after the tenant exists:
+#   use-cases/acm-tenancy-keycloak/apply-themes.sh -t startrek
+#
+# Do NOT apply use-cases/acm-tenancy/10-tenant-groups.yaml for this path.
+# The HTPasswd OAuth file was removed. Groups come from Keycloak OIDC claims.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: startrek-client-secret
+  namespace: openshift-config
+  labels:
+    tenant: startrek
+    app.kubernetes.io/part-of: acm-tenancy
+type: Opaque
+stringData:
+  clientSecret: VDRjA2vWjJwlSZQ9tickuGkBQpiiJHdN
+---
+apiVersion: dusty-seahorse.io/v1alpha1
+kind: Tenant
+metadata:
+  name: startrek
+  namespace: tenancies
+  labels:
+    tenant: startrek
+spec:
+  displayName: "Star Trek"
+  owner: platform-team@example.com
+  adminGroup: startrek-tenant-admin
+  userGroup: startrek-tenant-user
+  viewerGroup: startrek-tenant-viewer
+  workloadProfile: vms
+  seedStarterVm:
+    enabled: true
+  resourceQuota:
+    cpu: "86"
+    memory: "332Gi"
+    pods: "15"
+    storage: "2000Gi"
+  vmQuota:
+    cpu: "80"
+    memory: "320Gi"
+  limitRange:
+    maxCpu: "32"
+    maxMemory: "128Gi"
+    maxStorage: "1Ti"
+  network:
+    udnSubnet: "10.0.2.0/24"
+    metallb:
+      myASN: 64500
+      peerASN: 64502
+      peerAddress: "192.168.1.2"
+      vrf: startrek-vrf
+      addresses:
+        - "192.168.12.0/24"
+  identity:
+    enabled: true
+    provider: keycloak
+    consoleLoginName: startrek-idp
+    clientId: openshift-startrek
+    clientSecretRef:
+      name: startrek-client-secret
+      namespace: openshift-config
+    keycloak:
+      namespace: keycloak-system
+      instanceName: main
+      realm: startrek
+      manageRealm: true
+      seedUsers: true
+      seedPassword: HugAPug2026!
+      requirePasswordChange: true

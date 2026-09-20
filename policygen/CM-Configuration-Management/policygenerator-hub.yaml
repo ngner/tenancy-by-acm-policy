@@ -10,7 +10,7 @@ policyDefaults:
     - CM Configuration Management
   controls:
     - Provision Tenant Resources
-  namespace: policies
+  namespace: tenancies
   policySets:
     - tenancy-hub-configuration
   remediationAction: enforce
@@ -27,14 +27,26 @@ policies:
   #     - Enforce Cross-Tenant Network Deny
   #   manifests:
   #     - path: network-policy/admin-network-policy.yaml
+  - name: tenancy-hub-caas-hcp-namespaces
+    description: >-
+      Influences hub only: per-tenant Hosted Control Plane namespaces and base
+      quotas for clusters workload profile tenants.
+    controls:
+      - Provision Tenant Resources
+    manifests:
+      - path: namespace/hub-hcp-namespaces-from-crd.yaml
   - name: tenancy-hub-console-perspective-visibility
+    description: >-
+      Influences hub console UX: portal marker ConfigMaps and SAR rules that
+      show VMaaS/Developer perspectives and hide fleet admin views from tenants.
     controls:
       - Enforce ACM Console Perspective Visibility
     manifests:
-      - path: console/policy-console-perspective-rbac.yaml
+      - path: console/tenant-portal-markers.yaml
+      - path: console/policy-console-perspective-rbac-vmaas.yaml
 
 policySets:
   - name: tenancy-hub-configuration
-    description: Hub-side configuration policies including network controls
+    description: Hub tenant configuration — CaaS namespaces and console perspective visibility.
     placement:
-      placementName: policies-placement-hub-clusters
+      placementName: tenancies-placement-hub-clusters

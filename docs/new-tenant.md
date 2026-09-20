@@ -17,7 +17,10 @@ Fill in the table below before creating the Tenant CR. All fields except `adminG
 
 | Parameter          | Description                                                                                                       | Example              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------- |
-| **Tenant name**    | Namespace name on managed clusters, used as prefix everywhere                                                     | `starwars`           |
+| **Tenant label**   | All provisioned objects carry `tenant: <name>` for selection and auditing                                         | `tenant: starwars`   |
+| **Tenant name**    | Tenant CR name and default workload namespace on managed clusters; prefix for groups, MetalLB, realms | `starwars`           |
+| **Workload namespace** | Optional override for the managed-cluster namespace (`spec.workloadNamespace`). Defaults to tenant name. Use `{tenant}-ns` if you want a suffix. | `starwars` or `starwars-ns` |
+| **Workload profile** | What to provision: `vms` (default), `containers`, `both`, or `clusters` (CaaS / HCP) | `vms` or `clusters` |
 | **Tenant-Admin group**    | IdP group granted `admin` in the namespace + `kubevirt.io:admin` on VMs + `acm-vm-fleet:view` on the hub console  | `starwars-tenant-admin`  |
 | **Tenant-User group**     | IdP group granted `edit` in the namespace + `kubevirt.io:edit` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-tenant-user`   |
 | **Tenant-Viewer group**   | IdP group granted `view` in the namespace + `kubevirt.io:view` on VMs + `acm-vm-fleet:view` on the hub console    | `starwars-tenant-viewer` |
@@ -34,6 +37,17 @@ Roles are fixed per group tier:
 
 
 The `viewerGroup` field is optional. If omitted, no viewer-tier resources are created. If you only need one group, remove the unused tiers from the Tenant CR.
+
+### 1.2a Cluster-as-a-Service (`workloadProfile: clusters`)
+
+For HCP / CaaS tenants:
+
+- Hub policy creates namespace `{tenant}-hcp` (override with `spec.clusterAsAService.hcpNamespace`) and a hub ResourceQuota sized for **one HA HCP** (defaults: 12 CPU / 32Gi / 150 pods).
+- Spoke VM namespaces, AAQ, virt MCRAs, `acm-vm-fleet:view`, and VMaaS portal bindings are **not** applied.
+- Portal marker `portal-caas` is bound for future CaaS console UI.
+- Example: [`examples/tenant-acme-caas.yaml`](../examples/tenant-acme-caas.yaml).
+
+HostedCluster automation is a follow-on (Slice B). For a customer who also needs VMs, create a **second** Tenant CR (e.g. `acme-vms`) and optionally reuse IdP/groups (Slice C).
 
 ### 1.2 ResourceQuota vs ApplicationAwareResourceQuota vs LimitRange
 
@@ -107,9 +121,9 @@ Each tenant gets a **primary** `UserDefinedNetwork` (UDN) via OVN-Kubernetes. Th
 
 | Parameter      | CRD field            | Description                                                      |
 | -------------- | -------------------- | ---------------------------------------------------------------- |
-| **UDN subnet** | `network.udnSubnet`  | CIDR for this tenant's UDN — **need not be unique** cluster-wide |
+| **UDN subnet** | `network.udnSubnet`  | CIDR for this tenant's UDN — **need not be unique** cluster-wide. **Default `10.128.0.0/16`** if omitted (policy applies the default; override per tenant as needed). |
 
-If `network.udnSubnet` is omitted from the Tenant CR, no UDN is created.
+Every tenant with a matching `workloadProfile` receives a primary UDN and namespace label automatically. Omitting `udnSubnet` from the Tenant CR still provisions a UDN using the default CIDR.
 
 ### 1.7 MetalLB VRF / BGP (external connectivity)
 
@@ -124,6 +138,17 @@ Each tenant can get its own MetalLB BGP peering session in a dedicated VRF for i
 | **IP pool**      | `network.metallb.addresses` | CIDR or range of external IPs assigned to this tenant's services          |
 
 If the `network.metallb` section is omitted from the Tenant CR, no MetalLB resources are created.
+
+### 1.8 Managed cluster capabilities
+
+Tenant policies only propagate to spokes labelled with at least one capability:
+
+| Label | Use for |
+|-------|---------|
+| `tenancy.acm.io/capability-container=true` | Container / application workloads |
+| `tenancy.acm.io/capability-vm=true` | VM workloads (requires CNV on the spoke) |
+
+Label before creating tenants. Dual-capability clusters carry both labels. See [placements/capabilities/README.md](../placements/capabilities/README.md).
 
 ---
 
@@ -166,13 +191,15 @@ Once the Tenant CR is created, the policy evaluation cycle produces the followin
    - UserDefinedNetwork (if `network.udnSubnet` is set)
    - MetalLB BGPPeer, IPAddressPool, BGPAdvertisement (if `network.metallb` is set)
    - RoleBindings for Tenant-Admin, Tenant-User and Tenant-Viewer groups
-5. **Hub Keycloak policy** (`tenancy-hub-keycloak-realms`, when Keycloak is installed) creates a realm per tenant with seed users:
+5. **Hub Keycloak policy** (`tenancy-hub-keycloak-realms`, when `manageRealm` and `seedUsers` are true) bootstraps demo users (display name last name = title-cased tenant, e.g. `Admin Lexx`):
 
-   | Username | Password | Group |
-   |----------|----------|-------|
-   | `admin@<tenant>.local` | `password` | `<tenant>-tenant-admin` |
-   | `user@<tenant>.local` | `password` | `<tenant>-tenant-user` |
-   | `viewer@<tenant>.local` | `password` | `<tenant>-tenant-viewer` (if `viewerGroup` set) |
+   | Username | Display name | Password | Group |
+   |----------|--------------|----------|-------|
+   | `admin@<tenant>.local` | `Admin <Tenant>` | `spec.identity.keycloak.seedPassword` (default `password`) | `<tenant>-tenant-admin` |
+   | `user@<tenant>.local` | `User <Tenant>` | same | `<tenant>-tenant-user` |
+   | `viewer@<tenant>.local` | `Viewer <Tenant>` | same | `<tenant>-tenant-viewer` (if `viewerGroup` set) |
+
+   Set `requirePasswordChange: true` to force a password change on first login.
 
    See [`policygen/SC-System-and-Communications-Protection/keycloak/README.md`](../policygen/SC-System-and-Communications-Protection/keycloak/README.md) for OIDC client and theme notes.
 
@@ -199,6 +226,49 @@ oc get userdefinednetwork -n TENANT
 oc get rolebinding -n TENANT
 ```
 
+### 4.1 Tenant console login and first VM
+
+Tenant **workload namespaces exist on managed clusters only** (not on the ACM hub). After SSO login on the hub:
+
+| `workloadProfile` | Console perspectives | Notes |
+|-------------------|---------------------|-------|
+| `vms` or `both` | **VMaaS** (requires `tenant-vmaas-gui` plugin) | Default landing for VM tenants; lists VMs via fleet search |
+| `containers` or `both` | **Developer** | Gated on `portal-developer` marker in `tenancies` |
+| `clusters` | **CaaS** marker (`portal-caas`) | Hub `{tenant}-hcp` namespace; no spoke VM quotas / virt MCRAs / VMaaS. Console plugin TBD |
+| Platform admins | Fleet Management, Admin | Tenants do not see Fleet Management when vmaas perspective policy is active |
+
+**Prerequisites for tenant console access:**
+
+1. Hub policies synced: `tenant-portal-markers.yaml`, `hub-tenant-console-rbac.yaml`, `policy-console-perspective-rbac-vmaas.yaml` (see [`docs/tenant-console-portal.md`](tenant-console-portal.md)).
+2. VMaaS plugin deployed: `demo-setups/content/tenant-vmaas-gui/deployment/enable-vmaas.sh` (VM / both tenants).
+3. UDN is provisioned automatically (default `10.128.0.0/16`; override via `spec.network.udnSubnet`).
+
+Starter VMs are provisioned automatically for `vms` / `both` tenants when
+`spec.seedStarterVm.enabled` is true (the default). The hub **tenant-vm-seed-reconciler**
+CronJob creates a ManifestWork with a RHEL9 starter VM (`TENANT-starter`,
+`cloud-user` / `redhat`). Opt out with `seedStarterVm.enabled: false` or uncheck
+**Provision starter VM automatically** in the Create Tenant form.
+
+Manual override (or retry) if needed:
+
+```bash
+cd demo-setups/use-cases/acm-tenancy-workloads
+./seed-tenant-vm-via-hub.sh -t TENANT -c virtualisation-cluster
+```
+
+### 4.2 Onboarding checklist
+
+| Step | Action |
+|------|--------|
+| 1 | Label managed clusters with capability labels (`tenancy.acm.io/capability-vm` / `capability-container`) |
+| 2 | Create Tenant CR (`workloadProfile`, groups, quotas) |
+| 3 | Optional: override `network.udnSubnet` (default `10.128.0.0/16`) |
+| 4 | Wait for policies Compliant on hub and target spokes |
+| 5 | Keycloak realm + OAuth IdP (if using SSO) |
+| 6 | Starter VM — automatic via seed reconciler when `seedStarterVm` enabled (default for vms/both) |
+| 7 | Deploy VMaaS plugin (`enable-vmaas.sh`) for VM tenants |
+| 8 | Verify tenant login: correct perspectives, no Fleet Management |
+
 ---
 
 ## 5. Removing a tenant
@@ -217,12 +287,13 @@ On the next policy / reconciler cycle:
 | **KeycloakRealmImport** | Yes | `tenancy-hub-keycloak-realms` uses `pruneObjectBehavior: DeleteAll` |
 | **OAuth IdP** (`{tenant}-idp`) | Yes | Identity reconciler CronJob removes IdPs whose `openshift-{tenant}` client has no Tenant CR |
 | **Client secret** (`openshift-config/{tenant}-client-secret`) | Yes | Reconciler deletes default secret after removing orphan IdP |
-| **Custom theme** (ConfigMap + Keycloak mount) | No | Run `apply-themes.sh -d -t TENANT` in the demo repo |
+| **Portal RoleBindings** (`tenancies/*-portal-vmaas`, `*-portal-developer`) | Yes | Dropped when tenant leaves `hub-tenant-console-rbac` template range (after Argo sync) |
+| **Custom theme** (ConfigMap + Keycloak mount) | No — kept on purpose | Mounted once by `apply-themes.sh --no-tenant`. Survives tenant delete so recreate still shows the login CSS. Remove only with `apply-themes.sh -d -t TENANT --purge-themes`. |
 | **Hub ClusterRoleBindings / MCRAs** | No | AC Application has `prune: false` — remove manually or sync with prune |
 
 **Custom identity fields:** IdP/secret cleanup assumes default naming (`openshift-{tenant}` client, `{tenant}-client-secret`). Tenants with custom `clientId` or `clientSecretRef.name` may need manual OAuth/secret cleanup after delete.
 
-**Keycloak DB:** Deleting `KeycloakRealmImport` removes the CR; stale realm data in the Keycloak database may linger (RHBK is additive). Use the Keycloak admin API for strict DB cleanup if required.
+**Keycloak DB:** Deleting `KeycloakRealmImport` removes the CR only; RHBK does not drop the realm from the database. The identity reconciler CronJob deletes orphan DB realms (no Tenant CR and no import CR) via the Keycloak Admin API on each run.
 
 **Legacy theme-only tenants** (no `spec.identity`, created via `apply-themes.sh -r`): deleting the Tenant CR triggers policy realm-import prune; OAuth IdP cleanup uses the same `openshift-{tenant}` rule when the Tenant CR is gone.
 

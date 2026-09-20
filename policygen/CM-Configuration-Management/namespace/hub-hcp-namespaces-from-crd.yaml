@@ -1,0 +1,42 @@
+# Hub namespaces for Cluster-as-a-Service (HCP) tenants.
+# Creates {tenant}-hcp (or spec.clusterAsAService.hcpNamespace) on the hub with
+# a modest ResourceQuota. Skips spoke VM/container namespaces and AAQ.
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $profile := $tenant.spec.workloadProfile | default "vms" }}
+  {{- if eq $profile "clusters" }}
+  {{- $tenantName := $tenant.metadata.name }}
+  {{- $caas := $tenant.spec.clusterAsAService | default (dict) }}
+  {{- $hcpNs := $caas.hcpNamespace | default (printf "%s-hcp" $tenantName) }}
+  {{- $rq := $caas.hubResourceQuota | default (dict) }}
+  {{- $cpu := $rq.cpu | default "12" }}
+  {{- $memory := $rq.memory | default "32Gi" }}
+  {{- $pods := $rq.pods | default "150" }}
+  - complianceType: musthave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{ $hcpNs }}
+        labels:
+          tenant: {{ $tenantName | quote }}
+          tenancy.acm.io/workload-profile: clusters
+          tenancy.acm.io/capability-hcp: "true"
+  - complianceType: musthave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: v1
+      kind: ResourceQuota
+      metadata:
+        name: {{ $tenantName }}-hcp-quota
+        namespace: {{ $hcpNs }}
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        hard:
+          requests.cpu: {{ $cpu | quote }}
+          requests.memory: {{ $memory | quote }}
+          pods: {{ $pods | quote }}
+  {{- end }}
+  {{- end }}

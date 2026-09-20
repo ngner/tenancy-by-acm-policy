@@ -12,11 +12,15 @@ object-templates-raw: |
   {{- $kcCr := "main" }}
   {{- $realm := $name }}
   {{- $seedUsers := false }}
+  {{- $seedPassword := "HugAPug2026!" }}
+  {{- $seedPasswordTemporary := false }}
   {{- if $identity.keycloak }}
   {{- if $identity.keycloak.namespace }}{{ $kcNs = $identity.keycloak.namespace }}{{- end }}
   {{- if $identity.keycloak.instanceName }}{{ $kcCr = $identity.keycloak.instanceName }}{{- end }}
   {{- if $identity.keycloak.realm }}{{ $realm = $identity.keycloak.realm }}{{- end }}
   {{- if $identity.keycloak.seedUsers }}{{ $seedUsers = true }}{{- end }}
+  {{- if $identity.keycloak.seedPassword }}{{ $seedPassword = $identity.keycloak.seedPassword }}{{- end }}
+  {{- if $identity.keycloak.requirePasswordChange }}{{ $seedPasswordTemporary = true }}{{- end }}
   {{- end }}
   {{- $loginTheme := "keycloak" }}
   {{- if and $identity.keycloak $identity.keycloak.loginTheme }}{{ $loginTheme = $identity.keycloak.loginTheme }}{{- end }}
@@ -32,12 +36,15 @@ object-templates-raw: |
   {{- $idpName := printf "%s-idp" $name }}
   {{- if and $identity $identity.consoleLoginName }}{{ $idpName = $identity.consoleLoginName }}{{- end }}
   - complianceType: musthave
+    metadataComplianceType: musthave
     objectDefinition:
       apiVersion: k8s.keycloak.org/v2alpha1
       kind: KeycloakRealmImport
       metadata:
         name: {{ $name }}-realm-import
         namespace: {{ $kcNs }}
+        labels:
+          tenant: {{ $name | quote }}
       spec:
         keycloakCRName: {{ $kcCr }}
         realm:
@@ -68,38 +75,39 @@ object-templates-raw: |
               - name: {{ $tenant.spec.viewerGroup }}
               {{- end }}
           {{- if $seedUsers }}
+          {{- $displayLast := $name | title }}
           users:
             - username: admin@{{ $name }}.local
               enabled: true
               firstName: Admin
-              lastName: Default
+              lastName: {{ $displayLast }}
               groups:
                 - /{{ $tenant.spec.adminGroup }}
               credentials:
                 - type: password
-                  value: password
-                  temporary: false
+                  value: {{ $seedPassword | quote }}
+                  temporary: {{ $seedPasswordTemporary }}
             - username: user@{{ $name }}.local
               enabled: true
               firstName: User
-              lastName: Default
+              lastName: {{ $displayLast }}
               groups:
                 - /{{ $tenant.spec.userGroup }}
               credentials:
                 - type: password
-                  value: password
-                  temporary: false
+                  value: {{ $seedPassword | quote }}
+                  temporary: {{ $seedPasswordTemporary }}
             {{- if $tenant.spec.viewerGroup }}
             - username: viewer@{{ $name }}.local
               enabled: true
               firstName: Viewer
-              lastName: Default
+              lastName: {{ $displayLast }}
               groups:
                 - /{{ $tenant.spec.viewerGroup }}
               credentials:
                 - type: password
-                  value: password
-                  temporary: false
+                  value: {{ $seedPassword | quote }}
+                  temporary: {{ $seedPasswordTemporary }}
             {{- end }}
           {{- end }}
           clients:

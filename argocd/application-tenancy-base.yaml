@@ -1,8 +1,8 @@
 ---
-
-## This application renders the Tenant CRs and the Tenant CRD in the tenancies namespace.
-# This will GitOps the tenancy creation.  One could create the tenants by GUI then copy to the tenancies folder.
-
+# tenancy-base syncs tenancies/ which is intentionally empty.
+# Sample tenants are NOT GitOps-managed — create via Create Tenant UI or:
+#   examples/apply-samples.sh
+# prune must stay false: with an empty path, prune:true deletes any live Tenant CRs.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -22,5 +22,5 @@ spec:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
     automated:
-      prune: true
+      prune: false
       selfHeal: true

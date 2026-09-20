@@ -10,7 +10,7 @@ policyDefaults:
     - AC Access Control
   controls:
     - Enforce Tenant Access
-  namespace: policies
+  namespace: tenancies
   policySets:
     - tenancy-hub-access-control
   remediationAction: enforce
@@ -22,6 +22,9 @@ policyDefaults:
 
 policies:
   - name: tenancy-hub-console-and-vm-rbac
+    description: >-
+      Influences hub console + spokes (via MCRA): fleet VM visibility, per-tenant
+      kubevirt/namespace roles, VMaaS and Developer portal RBAC.
     controls:
       - Grant Hub Console and VM Management Access
     consolidateManifests: false
@@ -29,9 +32,10 @@ policies:
     manifests:
       - path: acm-finegrained-rbac/hub-fleet-crbs.yaml
       - path: acm-finegrained-rbac/hub-mcra-virt.yaml
+      - path: acm-finegrained-rbac/hub-tenant-console-rbac.yaml
 
 policySets:
   - name: tenancy-hub-access-control
-    description: Hub RBAC for ACM console visibility and all tenant namespace permissions (VM operations + least-privilege namespace access) propagated to managed clusters via MulticlusterRoleAssignments
+    description: Hub and fleet RBAC for tenant console access, VM lifecycle, and namespace permissions.
     placement:
-      placementName: policies-placement-hub-clusters
+      placementName: tenancies-placement-hub-clusters

@@ -1,0 +1,26 @@
+object-templates-raw: |
+  {{- range $tenant := (lookup "dusty-seahorse.io/v1alpha1" "Tenant" "tenancies" "").items }}
+  {{- $profile := $tenant.spec.workloadProfile | default "vms" }}
+  {{- if or (eq $profile "vms") (eq $profile "both") }}
+  {{- $tenantName := $tenant.metadata.name }}
+  {{- $workloadNs := $tenant.spec.workloadNamespace | default $tenantName }}
+  {{- $net := $tenant.spec.network | default dict }}
+  {{- $subnet := $net.udnSubnet | default "10.128.0.0/16" }}
+  - complianceType: mustonlyhave
+    metadataComplianceType: musthave
+    objectDefinition:
+      apiVersion: k8s.ovn.org/v1
+      kind: UserDefinedNetwork
+      metadata:
+        name: {{ $tenantName }}-network
+        namespace: {{ $workloadNs }}
+        labels:
+          tenant: {{ $tenantName | quote }}
+      spec:
+        topology: Layer2
+        layer2:
+          role: Primary
+          subnets:
+            - "{{ $subnet }}"
+  {{- end }}
+  {{- end }}

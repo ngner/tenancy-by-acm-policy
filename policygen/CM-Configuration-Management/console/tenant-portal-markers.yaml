@@ -1,0 +1,67 @@
+# Marker ConfigMaps for tenant console portal access (hub / tenancies namespace).
+# RoleBindings (hub-tenant-console-rbac.yaml) grant get on the relevant marker per
+# tenant group and workloadProfile. Console plugins and perspective rules use SAR
+# against these markers — not clusteroperators heuristics.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-vmaas
+  namespace: tenancies
+  labels:
+    tenancy.demo/portal: vmaas
+data:
+  description: Marker for VMaaS perspective access (vms / both tenants)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-developer
+  namespace: tenancies
+  labels:
+    tenancy.demo/portal: developer
+data:
+  description: Marker for Developer perspective access (containers / both tenants)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-caas
+  namespace: tenancies
+  labels:
+    tenancy.demo/portal: caas
+data:
+  description: Marker for Cluster-as-a-Service portal access (clusters tenants)
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tenant-portal-vmaas
+  namespace: tenancies
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["portal-vmaas"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tenant-portal-developer
+  namespace: tenancies
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["portal-developer"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tenant-portal-caas
+  namespace: tenancies
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["portal-caas"]
+    verbs: ["get"]

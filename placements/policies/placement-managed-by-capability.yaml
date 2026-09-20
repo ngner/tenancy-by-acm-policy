@@ -1,0 +1,24 @@
+---
+# Managed clusters opted into tenancy via capability labels (OR semantics across
+# predicates). Label at least one capability on each spoke that should receive
+# tenant namespaces and policies. See placements/capabilities/README.md.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: policies-placement-managed-clusters
+  namespace: policies
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            tenancy.acm.io/capability-container: "true"
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            tenancy.acm.io/capability-vm: "true"
+  tolerations:
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
